@@ -10,7 +10,7 @@
 <body>
 <main class="page wide" id="app"><p class="muted">Loading…</p></main>
 <script type="module">
-import { firebaseConfig, ADMIN_EMAIL } from './firebase-config.js';
+import { firebaseConfig, ADMIN_EMAILS } from './firebase-config.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
@@ -53,7 +53,7 @@ onAuthStateChanged(auth, async user => {
     document.getElementById('in').onclick = () => signInWithPopup(auth, new GoogleAuthProvider()).catch(e => { msg = e.message; });
     return;
   }
-  if (ADMIN_EMAIL && user.email !== ADMIN_EMAIL) {
+  if (!ADMIN_EMAILS.includes(user.email)) {
     app.innerHTML = '<h1>Not your back office</h1><p>' + esc(user.email) + ' can’t manage these letters.</p><button class="btn" id="out">Sign out</button>';
     document.getElementById('out').onclick = () => signOut(auth); return;
   }

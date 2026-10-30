@@ -9,5 +9,5 @@ export const firebaseConfig = {
   appId: "1:946812116849:web:d940d352e3a5cd6f4e20d0"
 };
 
-// The Google account you sign in with on admin.html. Must match the email in firestore.rules.
-export const ADMIN_EMAIL = "wumeihui.lily@gmail.com";
+// Google accounts that can sign in to admin.html. Must match the emails in firestore.rules.
+export const ADMIN_EMAILS = ["wumeihui.lily@gmail.com", "wulily@usc.edu"];

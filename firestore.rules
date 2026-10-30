@@ -2,9 +2,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // The Google account Lily signs in with on admin.html
+    // The Google accounts Lily signs in with on admin.html
     function isLily() {
-      return request.auth != null && request.auth.token.email == "wumeihui.lily@gmail.com";
+      return request.auth != null && request.auth.token.email in ["wumeihui.lily@gmail.com", "wulily@usc.edu"];
     }
 
     // Master data: only Lily
