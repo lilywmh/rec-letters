@@ -52,7 +52,7 @@ h1, h2, h3 { margin: 0; line-height: 1.25; }
 
 /* professor page */
 .me { display: grid; justify-items: center; text-align: center; gap: 6px; padding: 8px 8px 4px; }
-.me-list { list-style: none; margin: 0 0 6px; padding: 4px 6px 16px; display: grid; gap: 9px; font-size: 14px; color: var(--soft); border-bottom: 1px solid var(--line); }
+.me-list { list-style: none; margin: 0; padding: 4px 6px 0; display: grid; gap: 9px; font-size: 14px; color: var(--soft); }
 .me-list li { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; align-items: start; }
 .me-list .ic { display: grid; place-items: center; height: 21px; color: var(--soft); }
 .me-list a { color: var(--text); text-decoration-color: var(--faint); overflow-wrap: anywhere; }
@@ -192,3 +192,14 @@ dialog.welcome::backdrop { background: rgba(15,15,15,.45); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 #tools { display: flex; align-items: center; }
 #howto[hidden] + .sep { display: none; }
+
+.social { display: flex; justify-content: center; gap: 6px; padding: 12px 6px 16px; margin-bottom: 6px; border-bottom: 1px solid var(--line); }
+.soc { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; color: var(--soft); border: 1px solid var(--line); text-decoration: none; }
+.soc:hover { color: var(--text); background: var(--hover); }
+.soc svg { width: 17px; height: 17px; }
+.ask { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 14px 18px; border: 1px solid var(--line); border-radius: 10px; text-decoration: none; color: var(--text); }
+.ask:hover { background: var(--hover); }
+.ask .ask-i { width: 34px; height: 34px; border-radius: 50%; background: var(--blue-bg); color: var(--blue); display: grid; place-items: center; flex-shrink: 0; }
+.ask .ask-go { margin-left: auto; color: var(--soft); font-size: 18px; }
+.ask b { font-weight: 600; }
+@media (max-width: 880px) { .social { order: 0; } }

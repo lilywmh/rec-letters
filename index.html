@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Recommendation Letters · Lily Wu</title>
-<link rel="stylesheet" href="style.css?v=5">
-<script src="prefs.js?v=5"></script>
+<link rel="stylesheet" href="style.css?v=6">
+<script src="prefs.js?v=6"></script>
 </head>
 <body>
 <header class="topbar gutter"><div class="in"><div class="brand"><span class="em">✉️</span><span id="brand">Recommendation letters</span></div><div id="tools"></div></div></header>
 <main class="shell gutter" id="app"><p class="muted">Loading…</p></main>
 <dialog class="welcome" id="welcome" aria-labelledby="w-title"></dialog>
 <script type="module">
-import { firebaseConfig } from './firebase-config.js?v=5';
+import { firebaseConfig } from './firebase-config.js?v=6';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getFirestore, doc, onSnapshot, updateDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
@@ -116,10 +116,9 @@ function render() {
       (pf.major ? item('cap', esc(pf.major)) : '') +
       (pf.classOf ? item('cal', esc(pf.classOf)) : '') +
       (pf.email ? item('mail', '<a href="mailto:' + esc(pf.email) + '">' + esc(pf.email) + '</a>') : '') +
-      (pf.website ? item('web', link(pf.website, 'Website')) : '') +
-      (pf.linkedin ? item('in', link(pf.linkedin, 'LinkedIn')) : '') +
-      (pf.github ? item('gh', link(pf.github, 'GitHub')) : '') +
     '</ul>';
+  const social = [['web', pf.website, 'Personal website'], ['in', pf.linkedin, 'LinkedIn'], ['gh', pf.github, 'GitHub']].filter(x => x[1]);
+  if (social.length) h += '<div class="social">' + social.map(x => '<a class="soc" href="' + esc(x[1]) + '" target="_blank" rel="noopener" aria-label="' + x[2] + '" title="' + x[2] + '">' + ICON[x[0]] + '</a>').join('') + '</div>';
   h += sec('materials', '📎', 'My materials', mats.filter(m => m.url).length + ' of ' + mats.length,
     '<ul class="files">' + mats.map(m => m.url
       ? '<li><a href="' + esc(m.url) + '" target="_blank" rel="noopener">📄 ' + esc(m.label) + (m.updated ? '<span class="d">' + fmt(m.updated) + '</span>' : '') + '</a></li>'
@@ -137,7 +136,6 @@ function render() {
       return '<div><b>' + esc(s.program) + '</b><span class="muted">' + how + '</span></div>';
     }).join('') + '</div>');
   const mail = pf.email || 'wulily@usc.edu';
-  h += '<p class="muted foot">Questions? <a href="mailto:' + esc(mail) + '">Send me an email</a> at ' + esc(mail) + '.</p>';
   h += '</aside>';
 
   const pct = mine.length ? Math.round(done.length / mine.length * 100) : 0;
@@ -155,7 +153,9 @@ function render() {
       '<span><span class="name">' + esc(s.program) + '</span><span class="sub">' + sub + '</span></span>' +
       '<span class="due"><span>' + (s.due ? fmt(s.due) : 'TBD') + (s.time && !isDone ? ', ' + esc(s.time) : '') + '</span>' + (!isDone && d != null && d >= 0 && d <= 10 ? '<span class="tag orange">' + (d === 0 ? 'today' : d + ' days') + '</span>' : '') + '</span></li>';
   });
-  h += '</ul><div class="toast" role="status">' + esc(toast) + '</div></section></div></div>';
+  h += '</ul><div class="toast" role="status">' + esc(toast) + '</div></section>' +
+    '<a class="ask" href="mailto:' + esc(mail) + '"><span class="ask-i">' + ICON.mail + '</span><span><b>Got a question?</b><span class="muted"> Send me an email at ' + esc(mail) + '</span></span><span class="ask-go" aria-hidden="true">\u2192</span></a>' +
+    '</div></div>';
   app.innerHTML = h;
 }
 
