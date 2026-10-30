@@ -10,4 +10,4 @@ export const firebaseConfig = {
 };
 
 // The Google account you sign in with on admin.html. Must match the email in firestore.rules.
-export const ADMIN_EMAIL = "";
+export const ADMIN_EMAIL = "wumeihui.lily@gmail.com";
