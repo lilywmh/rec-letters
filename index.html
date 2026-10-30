@@ -5,19 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Recommendation Letters · Lily Wu</title>
-<link rel="stylesheet" href="style.css?v=3">
-<script src="prefs.js?v=3"></script>
+<link rel="stylesheet" href="style.css?v=4">
+<script src="prefs.js?v=4"></script>
 </head>
 <body>
 <header class="topbar gutter"><div class="in"><div class="brand"><span class="em">✉️</span><span id="brand">Recommendation letters</span></div><div id="tools"></div></div></header>
 <main class="shell gutter" id="app"><p class="muted">Loading…</p></main>
 <dialog class="welcome" id="welcome" aria-labelledby="w-title"></dialog>
 <script type="module">
-import { firebaseConfig } from './firebase-config.js?v=3';
+import { firebaseConfig } from './firebase-config.js?v=4';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getFirestore, doc, onSnapshot, updateDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-document.getElementById('tools').innerHTML = window.RLPrefs ? RLPrefs.controls() : '';
+document.getElementById('tools').innerHTML = '<div class="tools"><button class="tool help" id="howto" hidden><span class="q" aria-hidden="true">?</span><span class="help-t">How this page works</span></button><span class="sep" aria-hidden="true"></span></div>' + (window.RLPrefs ? RLPrefs.controls() : '');
+document.getElementById('howto').onclick = () => { if (P) showWelcome(); };
 window.RLPrefs && RLPrefs.wire();
 
 const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -48,12 +49,11 @@ if (!token) {
   const ref = doc(db, 'pages', token);
   onSnapshot(ref, snap => {
     if (!snap.exists()) { app.innerHTML = '<div class="center"><div class="big">✉️</div><h1>This link doesn’t open a page</h1><p>Please use the exact link from Lily’s email, or reply to her and she’ll resend it.</p></div>'; return; }
-    P = snap.data(); render(); maybeWelcome();
+    P = snap.data(); document.getElementById('howto').hidden = false; render(); maybeWelcome();
   }, () => { app.innerHTML = '<div class="center"><h1>Can’t load right now</h1><p>Please refresh in a minute.</p></div>'; });
 
   app.addEventListener('toggle', e => { const d = e.target; if (d.matches && d.matches('details[data-sec]')) { d.open ? openSecs.add(d.dataset.sec) : openSecs.delete(d.dataset.sec); } }, true);
   app.addEventListener('click', async e => {
-    if (e.target.closest('#howto')) { showWelcome(); return; }
     const box = e.target.closest('[data-tick]');
     if (!box || busy) return;
     const id = box.dataset.tick, s = P.schools.find(x => x.id === id);
@@ -64,7 +64,7 @@ if (!token) {
       await updateDoc(ref, { ['status.' + id]: now, statusAt: serverTimestamp() });
       toast = now === 'submitted' ? 'Checked off ' + s.program + '. Thank you!' : 'Unchecked ' + s.program + '.';
     } catch (err) {
-      P.status[id] = was; toast = 'That didn’t save. Please try again, or just reply to Lily’s email.';
+      P.status[id] = was; toast = 'That didn’t save. Please try again, or send Lily an email at wulily@usc.edu.';
     }
     busy = false; render();
   });
@@ -94,7 +94,7 @@ function render() {
   h += '<div class="cols"><aside class="side">';
   h += '<div class="me">' + (pf.photo ? '<img class="avatar" src="' + esc(pf.photo) + '" alt="' + esc(name) + '">' : '<div class="avatar initials" aria-hidden="true">' + esc(initials) + '</div>') +
     '<div class="me-name">' + esc(name) + '</div>' + (pf.tagline ? '<div class="me-tag">' + esc(pf.tagline) + '</div>' : '') +
-    '<div class="me-links">' + (pf.website ? '<a href="' + esc(pf.website) + '" target="_blank" rel="noopener">\ud83c\udf10 Website</a>' : '') + (pf.email ? '<span class="mono-ish">\u2709\ufe0f ' + esc(pf.email) + '</span>' : '') + '</div></div>';
+    '<div class="me-links">' + (pf.website ? '<a href="' + esc(pf.website) + '" target="_blank" rel="noopener">\ud83c\udf10 Website</a>' : '') + (pf.email ? '<a href="mailto:' + esc(pf.email) + '">\u2709\ufe0f ' + esc(pf.email) + '</a>' : '') + '</div></div>';
   h += sec('materials', '📎', 'My materials', mats.filter(m => m.url).length + ' of ' + mats.length,
     '<ul class="files">' + mats.map(m => m.url
       ? '<li><a href="' + esc(m.url) + '" target="_blank" rel="noopener">📄 ' + esc(m.label) + (m.updated ? '<span class="d">' + fmt(m.updated) + '</span>' : '') + '</a></li>'
@@ -111,7 +111,8 @@ function render() {
       if (s.link) how += ' · <a href="' + esc(s.link) + '" target="_blank" rel="noopener">' + (m === 'email' || m === 'mail' ? esc(s.link) : 'Open link') + '</a>';
       return '<div><b>' + esc(s.program) + '</b><span class="muted">' + how + '</span></div>';
     }).join('') + '</div>');
-  h += '<p class="muted foot"><button class="link" id="howto">How this page works</button><br>Questions? Just reply to my email.</p>';
+  const mail = pf.email || 'wulily@usc.edu';
+  h += '<p class="muted foot">Questions? <a href="mailto:' + esc(mail) + '">Send me an email</a> at ' + esc(mail) + '.</p>';
   h += '</aside>';
 
   const pct = mine.length ? Math.round(done.length / mine.length * 100) : 0;
@@ -144,10 +145,11 @@ function showWelcome() {
     '<h2 id="w-title">' + (P.salutation ? 'Hi ' + esc(P.salutation) + ',' : 'Hi there,') + '</h2>' +
     '<p>Thank you so much for writing for me. I made this page so everything you need is in one place, and you never have to dig through old emails.</p>' +
     '<ol>' +
-      '<li><span class="wi">📎</span><span><b>Everything is on the left</b><span class="ws">My CV and statements, what I’d love you to highlight, and how each school takes letters.</span></span></li>' +
+      '<li><span class="wi">📎</span><span><b>Everything you need is in the side panel</b><span class="ws">My CV and statements, what I’d love you to highlight, and how each school takes letters.</span></span></li>' +
       '<li><span class="wi">☑️</span><span><b>Tick a school when you submit</b><span class="ws">I’ll see it right away, so there’s no need to email me each time.</span></span></li>' +
-      '<li><span class="wi">📬</span><span><b>Invitations come from each school</b><span class="ws">If one is missing or a link has expired, reply to my email and I’ll resend it.</span></span></li>' +
+      '<li><span class="wi">📬</span><span><b>Invitations come from each school</b><span class="ws">If one is missing or a link has expired, send me an email and I’ll resend it.</span></span></li>' +
     '</ol>' +
+    '<p class="ws" style="margin:0">You can open this again anytime from <b style="display:inline">? How this page works</b> at the top.</p>' +
     '<div class="w-actions"><span class="sig">With gratitude, Lily</span><button class="btn primary" value="ok" autofocus>Sounds good</button></div>' +
     '</form>';
   d.onclose = () => store.set('rl-welcomed-' + token, '1');

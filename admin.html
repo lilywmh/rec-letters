@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Letters Back Office</title>
-<link rel="stylesheet" href="style.css?v=3">
-<script src="prefs.js?v=3"></script>
+<link rel="stylesheet" href="style.css?v=4">
+<script src="prefs.js?v=4"></script>
 </head>
 <body>
 <header class="topbar gutter"><div class="in"><div class="brand"><span class="em">🗂️</span><span>Letters back office</span></div><div class="tools-wrap row"><span id="who" class="muted"></span><div id="tools"></div></div></div></header>
 <main class="gutter" id="app"><p class="muted center">Loading…</p></main>
 <script type="module">
-import { firebaseConfig, ADMIN_EMAILS } from './firebase-config.js?v=3';
+import { firebaseConfig, ADMIN_EMAILS } from './firebase-config.js?v=4';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
