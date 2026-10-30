@@ -22,7 +22,7 @@
 5. 在 Authentication → **Settings → Authorized domains** 里点 Add domain，填入 `lilywmh.github.io`。
 
 ### 4. 填配置
-- 在 GitHub 上打开 `firebase-config.js`，点铅笔图标编辑。把 `PASTE_HERE` 换成第 3 步复制的值，`ADMIN_EMAIL` 换成你登录用的 Gmail，然后保存。
+- 在 GitHub 上打开 `firebase-config.js`，点铅笔图标编辑。把 `PASTE_HERE` 换成第 3 步复制的值，`ADMIN_EMAILS` 里填你登录用的邮箱，然后保存。
 - 打开 Firebase 的 **Firestore → Rules**，把 `firestore.rules` 的全部内容粘贴进去，把里面的 Gmail 换成你的，再点 Publish。
 
 ### 5. 第一次登录
