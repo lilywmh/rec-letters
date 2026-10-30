@@ -134,7 +134,7 @@ function profileTab() {
   const p = D.profile || (D.profile = defaultProfile());
   const f = (k, label, ph, wide) => '<label' + (wide ? ' class="wide"' : '') + '>' + label + '<input data-p="' + k + '" placeholder="' + esc(ph || '') + '" value="' + esc(p[k]) + '"></label>';
   return '<p class="muted">This is the card at the top left of every professor\u2019s page, so they remember who you are at a glance.</p>' +
-    '<div class="block"><div class="wide row" style="gap:16px">' + '<img class="avatar" style="width:72px;height:72px" src="' + esc(!p.photo || p.photo === 'avatar.jpg' ? 'avatar.jpg?v=3' : p.photo) + '" alt="">' +
+    '<div class="block"><div class="wide row" style="gap:16px">' + '<img class="avatar" style="width:72px;height:72px" src="' + esc(!p.photo || p.photo === 'avatar.jpg' ? 'avatar.jpg?v=4' : p.photo) + '" alt="">' +
     '<span class="muted">Your photo is avatar.jpg on the site. To use a different one, paste a link to a square photo below.</span></div>' +
     f('photo', 'Photo link', 'https://...', true) + f('name', 'Name') + f('email', 'Email') + f('major', 'Major', '', true) + f('classOf', 'Class', 'Class of 2027') + f('website', 'Website', 'https://...') + f('linkedin', 'LinkedIn', 'https://www.linkedin.com/in/...') + f('github', 'GitHub', 'https://github.com/...') + '</div>';
 }
