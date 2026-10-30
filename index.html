@@ -99,7 +99,7 @@ function render() {
 
   const pf = Object.assign({}, DEFAULT_PROFILE, P.profile || {});
   Object.keys(DEFAULT_PROFILE).forEach(k => { if (pf[k] === undefined || pf[k] === null) pf[k] = DEFAULT_PROFILE[k]; });
-  if (!pf.photo || pf.photo === 'avatar.jpg') pf.photo = 'avatar.jpg?v=2';
+  if (!pf.photo || pf.photo === 'avatar.jpg') pf.photo = 'avatar.jpg?v=3';
   if (!pf.major && pf.tagline) pf.major = pf.tagline;
   const name = pf.name || P.student || 'Lily';
   const initials = name.replace(/\(.*?\)/g, '').trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
