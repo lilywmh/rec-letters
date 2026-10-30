@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Letters Back Office</title>
-<link rel="stylesheet" href="style.css?v=4">
-<script src="prefs.js?v=4"></script>
+<link rel="stylesheet" href="style.css?v=5">
+<script src="prefs.js?v=5"></script>
 </head>
 <body>
 <header class="topbar gutter"><div class="in"><div class="brand"><span class="em">🗂️</span><span>Letters back office</span></div><div class="tools-wrap row"><span id="who" class="muted"></span><div id="tools"></div></div></div></header>
 <main class="gutter" id="app"><p class="muted center">Loading…</p></main>
 <script type="module">
-import { firebaseConfig, ADMIN_EMAILS } from './firebase-config.js?v=4';
+import { firebaseConfig, ADMIN_EMAILS } from './firebase-config.js?v=5';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
@@ -73,11 +73,11 @@ onAuthStateChanged(auth, async user => {
     return;
   }
   document.getElementById('who').textContent = user.email;
-  M = snap.data(); M.profile = Object.assign(defaultProfile(), M.profile || {}); D = clone(M); start();
+  M = snap.data(); M.profile = Object.assign(defaultProfile(), M.profile || {}); if (M.profile.tagline) { delete M.profile.tagline; } D = clone(M); start();
 });
 const clone = o => JSON.parse(JSON.stringify(o));
 function defaultProfile() {
-  return { name: 'Meihui (Lily) Wu', tagline: 'Applied & Computational Mathematics and Cognitive Science, USC \u00b7 Class of 2027', photo: 'avatar.jpg', website: 'https://lilywmh.github.io', email: 'wulily@usc.edu' };
+  return { name: 'Meihui (Lily) Wu', photo: 'avatar.jpg', major: 'Applied & Computational Mathematics and Cognitive Science, USC', classOf: 'Class of 2027', email: 'wulily@usc.edu', website: 'https://lilywmh.github.io', linkedin: 'https://www.linkedin.com/in/meihui-lily-wu', github: 'https://github.com/lilywmh' };
 }
 function start() {
   unsub = onSnapshot(collection(db, 'pages'), s => { pages = {}; s.forEach(d => { pages[d.id] = d.data(); }); if (tab === 'status' || tab === 'mail') render(); });
@@ -136,7 +136,7 @@ function profileTab() {
   return '<p class="muted">This is the card at the top left of every professor\u2019s page, so they remember who you are at a glance.</p>' +
     '<div class="block"><div class="wide row" style="gap:16px">' + '<img class="avatar" style="width:72px;height:72px" src="' + esc(p.photo || 'avatar.jpg') + '" alt="">' +
     '<span class="muted">Your photo is avatar.jpg on the site. To use a different one, paste a link to a square photo below.</span></div>' +
-    f('photo', 'Photo link', 'https://...', true) + f('name', 'Name') + f('email', 'Email') + f('tagline', 'One-line intro', '', true) + f('website', 'Website', 'https://...', true) + '</div>';
+    f('photo', 'Photo link', 'https://...', true) + f('name', 'Name') + f('email', 'Email') + f('major', 'Major', '', true) + f('classOf', 'Class', 'Class of 2027') + f('website', 'Website', 'https://...') + f('linkedin', 'LinkedIn', 'https://www.linkedin.com/in/...') + f('github', 'GitHub', 'https://github.com/...') + '</div>';
 }
 function statusTab() {
   const schools = D.schools.slice().sort(byDue);
