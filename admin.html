@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Letters Back Office</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="page wide" id="app"><p class="muted">Loading…</p></main>
+<script type="module">
+import { firebaseConfig, ADMIN_EMAIL } from './firebase-config.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+
+const fb = initializeApp(firebaseConfig);
+const db = getFirestore(fb), auth = getAuth(fb);
+const app = document.getElementById('app');
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const parse = d => { if (!d) return null; const [y, m, x] = d.split('-').map(Number); return new Date(y, m - 1, x); };
+const fmt = d => { const x = parse(d); return x ? MON[x.getMonth()] + ' ' + x.getDate() : ''; };
+const today = () => { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), t.getDate()); };
+const iso = t => t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
+const daysLeft = d => { const x = parse(d); return x ? Math.round((x - today()) / 864e5) : null; };
+const byDue = (a, b) => (!a.due) - (!b.due) || (a.due < b.due ? -1 : a.due > b.due ? 1 : 0);
+const lines = t => String(t || '').split('\n').map(x => x.trim()).filter(Boolean);
+const rand = n => Array.from(crypto.getRandomValues(new Uint8Array(n)), b => b.toString(16).padStart(2, '0')).join('');
+const base = location.href.replace(/admin\.html.*$/, '').replace(/#.*$/, '');
+const LABEL = { todo: ['grey', 'Not invited'], invited: ['blue', 'Invited'], submitted: ['green', 'Submitted'], na: ['grey', '— Not applying'] };
+const CYCLE = ['todo', 'invited', 'submitted', 'na'];
+const METHODS = [['portal', 'Portal invitation'], ['email', 'Email'], ['mail', 'Mail'], ['link', 'Upload link']];
+
+/* Starter data is pasted in once on first sign-in, so nothing personal lives in this repository. */
+function fromStarter(text) {
+  const x = JSON.parse(text);
+  if (!Array.isArray(x.schools) || !Array.isArray(x.recs)) throw new Error('This doesn’t look like the starter file. It needs "schools" and "recs".');
+  x.schools.forEach(s => { s.id = s.id || 's' + rand(3); s.method = s.method || 'portal'; ['time', 'from', 'link', 'howto'].forEach(k => { s[k] = s[k] || ''; }); });
+  x.recs.forEach(r => { r.token = r.token || r.id + '-' + rand(9); r.context = r.context || []; r.points = r.points || []; r.skip = r.skip || []; });
+  x.materials = x.materials || [];
+  x.updated = iso(today());
+  return x;
+}
+
+let M = null, D = null, pages = {}, tab = 'status', dirty = false, saving = false, msg = '', mailRec = 'baek', mailKind = 'checkin', unsub = null;
+
+onAuthStateChanged(auth, async user => {
+  if (unsub) { unsub(); unsub = null; }
+  if (!user) {
+    app.innerHTML = '<div class="icon">🗂️</div><h1>Letters back office</h1><p class="muted">Only Lily can sign in here.</p><p><button class="btn primary" id="in">Sign in with Google</button></p>';
+    document.getElementById('in').onclick = () => signInWithPopup(auth, new GoogleAuthProvider()).catch(e => { msg = e.message; });
+    return;
+  }
+  if (ADMIN_EMAIL && user.email !== ADMIN_EMAIL) {
+    app.innerHTML = '<h1>Not your back office</h1><p>' + esc(user.email) + ' can’t manage these letters.</p><button class="btn" id="out">Sign out</button>';
+    document.getElementById('out').onclick = () => signOut(auth); return;
+  }
+  const snap = await getDoc(doc(db, 'admin', 'master'));
+  if (!snap.exists()) {
+    app.innerHTML = '<div class="icon">🗂️</div><h1>Set up your letters</h1><p>Nothing is saved yet. Open <b>starter.json</b> (the file Claude sent you), copy everything in it, and paste it here. You can change everything afterwards.</p>' +
+      '<label>Starter data<textarea id="starter" class="mail" placeholder="{ &quot;student&quot;: ... }"></textarea></label><p class="row"><button class="btn primary" id="seed">Load starter data</button><span class="muted" id="seedmsg"></span></p>';
+    document.getElementById('seed').onclick = async () => {
+      try { M = fromStarter(document.getElementById('starter').value); D = clone(M); await publishAll(); start(); }
+      catch (e) { document.getElementById('seedmsg').textContent = e.message; }
+    };
+    return;
+  }
+  M = snap.data(); D = clone(M); start();
+});
+const clone = o => JSON.parse(JSON.stringify(o));
+function start() {
+  unsub = onSnapshot(collection(db, 'pages'), s => { pages = {}; s.forEach(d => { pages[d.id] = d.data(); }); if (tab === 'status' || tab === 'mail') render(); });
+  render();
+}
+
+function stOf(r, s) {
+  if ((r.skip || []).includes(s.id)) return 'na';
+  const p = pages[r.token]; return (p && p.status && p.status[s.id]) || 'todo';
+}
+function pageFor(r, prev) {
+  const schools = D.schools.filter(s => !(r.skip || []).includes(s.id));
+  const status = {}, invitedOn = {};
+  schools.forEach(s => { status[s.id] = (prev && prev.status && prev.status[s.id]) || 'todo'; invitedOn[s.id] = (prev && prev.invitedOn && prev.invitedOn[s.id]) || ''; });
+  return { student: D.student, note: D.note, salutation: r.salutation, materials: D.materials, context: r.context || [], points: r.points || [], schools, status, invitedOn, updated: iso(today()) };
+}
+async function publishAll() {
+  D.updated = iso(today());
+  await setDoc(doc(db, 'admin', 'master'), D);
+  for (const r of D.recs) await setDoc(doc(db, 'pages', r.token), pageFor(r, pages[r.token]));
+  M = clone(D);
+}
+async function cycle(r, s) {
+  const cur = stOf(r, s), nxt = CYCLE[(CYCLE.indexOf(cur) + 1) % CYCLE.length];
+  const rec = D.recs.find(x => x.id === r.id), mrec = M.recs.find(x => x.id === r.id);
+  try {
+    if (nxt === 'na' || cur === 'na') {
+      const skip = new Set(rec.skip || []); nxt === 'na' ? skip.add(s.id) : skip.delete(s.id);
+      rec.skip = [...skip]; if (mrec) mrec.skip = rec.skip;
+      await setDoc(doc(db, 'admin', 'master'), { ...M, recs: M.recs.map(x => x.id === r.id ? { ...x, skip: rec.skip } : x) });
+      const prev = clone(pages[r.token] || {}); if (cur === 'na') { prev.status = prev.status || {}; prev.status[s.id] = 'todo'; }
+      await setDoc(doc(db, 'pages', r.token), { ...pageFor(rec, prev), updated: (pages[r.token] || {}).updated || iso(today()) });
+    } else {
+      const upd = { ['status.' + s.id]: nxt };
+      if (nxt === 'invited' && !((pages[r.token] || {}).invitedOn || {})[s.id]) upd['invitedOn.' + s.id] = iso(today());
+      await updateDoc(doc(db, 'pages', r.token), upd);
+    }
+    msg = '';
+  } catch (e) { msg = 'That change didn’t save: ' + e.message; render(); }
+}
+
+function render() {
+  const tabs = [['status', 'Status'], ['schools', 'Schools'], ['materials', 'Materials'], ['people', 'Professors'], ['mail', 'Reminder email']];
+  let h = '<div class="row" style="justify-content:space-between"><div class="icon">🗂️</div><button class="link" id="out">Sign out</button></div><h1>Letters back office</h1>';
+  h += '<div class="tabs" role="tablist">' + tabs.map(t => '<button role="tab" aria-selected="' + (t[0] === tab) + '" data-tab="' + t[0] + '">' + t[1] + '</button>').join('') + '</div>';
+  h += '<section class="panel">' + ({ status: statusTab, schools: schoolsTab, materials: materialsTab, people: peopleTab, mail: mailTab })[tab]() + '</section>';
+  h += '<div class="savebar"><div class="in"><button class="btn primary" id="save"' + (!dirty || saving ? ' disabled' : '') + '>' + (saving ? 'Publishing…' : 'Publish changes') + '</button>' +
+    '<button class="btn" id="discard"' + (dirty && !saving ? '' : ' hidden') + '>Discard</button>' +
+    '<span class="muted" id="barmsg">' + esc(msg || (dirty ? 'Unsaved changes to schools, materials or professors' : 'Status clicks save instantly · last published ' + fmt(M.updated))) + '</span></div></div>';
+  app.innerHTML = h; wire();
+}
+function statusTab() {
+  const schools = D.schools.slice().sort(byDue);
+  return '<p class="muted">Click a tag to move it along: Not invited → Invited → Submitted → Not applying. Saves instantly; professors’ own check-offs appear here live.</p>' +
+    '<div class="scroll"><table><thead><tr><th>Program</th><th>Due</th>' + D.recs.map(r => '<th>' + esc(r.name) + '</th>').join('') + '</tr></thead><tbody>' +
+    schools.map(s => { const d = daysLeft(s.due); return '<tr><td>' + esc(s.program) + '</td><td class="d">' + (s.due ? fmt(s.due) : 'TBD') + (d != null && d >= 0 && d <= 10 ? ' <span class="tag orange">' + d + 'd</span>' : '') + '</td>' +
+      D.recs.map(r => { const v = stOf(r, s); return '<td><button class="cell" data-cell="' + r.id + '|' + s.id + '"><span class="tag ' + LABEL[v][0] + '">' + LABEL[v][1] + '</span></button></td>'; }).join('') + '</tr>'; }).join('') +
+    '</tbody></table></div>';
+}
+function schoolsTab() {
+  return '<p class="muted">Edit, then press Publish. “Invite email from” is a word professors can search their inbox for.</p>' + D.schools.map((s, i) =>
+    '<div class="block"><label class="wide">Program<input data-s="' + i + '" data-k="program" value="' + esc(s.program) + '"></label>' +
+    '<label>Letter due<input type="date" data-s="' + i + '" data-k="due" value="' + esc(s.due) + '"></label>' +
+    '<label>Time<input data-s="' + i + '" data-k="time" placeholder="11:59 PM ET" value="' + esc(s.time) + '"></label>' +
+    '<label>How to submit<select data-s="' + i + '" data-k="method">' + METHODS.map(m => '<option value="' + m[0] + '"' + ((s.method || 'portal') === m[0] ? ' selected' : '') + '>' + m[1] + '</option>').join('') + '</select></label>' +
+    '<label>Invite email from<input data-s="' + i + '" data-k="from" value="' + esc(s.from) + '"></label>' +
+    '<label class="wide">Link or address (optional)<input data-s="' + i + '" data-k="link" placeholder="https://..." value="' + esc(s.link) + '"></label>' +
+    '<label class="wide">Instructions in your words (optional)<input data-s="' + i + '" data-k="howto" value="' + esc(s.howto) + '"></label>' +
+    '<div class="wide"><button class="link" data-rm="' + i + '">Remove this school</button></div></div>').join('') +
+    '<div><button class="btn" id="add">+ Add a school</button></div>';
+}
+function materialsTab() {
+  return '<p class="muted">Google Drive links set to “Anyone with the link can view.” Change the date when you upload a new version.</p>' + D.materials.map((m, i) =>
+    '<div class="block"><label class="wide">' + esc(m.label) + '<input data-m="' + i + '" data-k="url" placeholder="https://drive.google.com/..." value="' + esc(m.url) + '"></label>' +
+    '<label>Last updated<input type="date" data-m="' + i + '" data-k="updated" value="' + esc(m.updated) + '"></label></div>').join('');
+}
+function peopleTab() {
+  return '<p class="muted">Each professor’s link opens only their own page. For highlights, name 2 or 3 specific strengths plainly. Don’t be modest.</p>' + D.recs.map((r, i) =>
+    '<div class="block"><h3 class="wide">' + esc(r.name) + '</h3>' +
+    '<div class="wide row"><span class="mono">' + esc(base + '#' + r.token) + '</span><button class="btn" data-copy="' + esc(base + '#' + r.token) + '">Copy link</button><a href="' + esc(base + '#' + r.token) + '" target="_blank" rel="noopener">Open their page</a></div>' +
+    '<label>How you address them<input data-r="' + i + '" data-k="salutation" value="' + esc(r.salutation) + '"></label>' +
+    '<label>Column name<input data-r="' + i + '" data-k="name" value="' + esc(r.name) + '"></label>' +
+    '<label class="wide">Our work together: course, semester, grade, projects (one per line)<textarea data-r="' + i + '" data-k="context">' + esc((r.context || []).join('\n')) + '</textarea></label>' +
+    '<label class="wide">What to highlight (2 or 3 lines)<textarea data-r="' + i + '" data-k="points" placeholder="e.g. Led the Kin project team and kept four people on schedule">' + esc((r.points || []).join('\n')) + '</textarea></label></div>').join('') +
+    '<div class="block"><h3 class="wide">Shared</h3><label class="wide">Note at the top of every page<textarea data-g="note">' + esc(D.note) + '</textarea></label></div>';
+}
+function mailText(r, kind) {
+  const mine = D.schools.filter(s => stOf(r, s) !== 'na');
+  const open = mine.filter(s => stOf(r, s) !== 'submitted').sort(byDue);
+  const soon = open.filter(s => { const d = daysLeft(s.due); return d != null && d >= 0 && d <= 7; });
+  const link = base + '#' + r.token;
+  const line = s => '  • ' + s.program + ', due ' + (s.due ? fmt(s.due) : 'TBD') + (s.time ? ' ' + s.time : '') + (stOf(r, s) === 'todo' && (s.method || 'portal') === 'portal' ? ' (invitation coming soon)' : '');
+  const sig = '\n\nThank you so much,\nLily';
+  if (kind === 'thanks') return ['Thank you for my recommendation letters', 'Dear ' + r.salutation + ',\n\nAll of my recommendation letters are in, and I wanted to say thank you. I really appreciate the time you took to write for me, and I will let you know how things go this spring.' + sig];
+  if (kind === 'urgent') { const l = soon.length ? soon : open.slice(0, 1); return ['Recommendation letter due ' + (l[0] && l[0].due ? fmt(l[0].due) : 'soon'), 'Dear ' + r.salutation + ',\n\nI hope you are doing well. A quick reminder that ' + (l.length === 1 ? 'this letter is' : 'these letters are') + ' due in the next few days:\n\n' + l.map(line).join('\n') + '\n\nIf the invitation email is hard to find, I am happy to resend it. Everything is also on your page, where you can check off a letter once it is in: ' + link + sig]; }
+  return ['Recommendation letters: quick update', 'Dear ' + r.salutation + ',\n\nI hope your week is going well. Here is a quick update on my applications. ' + (open.length ? (open.length === 1 ? 'One letter is still open:' : open.length + ' letters are still open:') + '\n\n' + open.map(line).join('\n') : 'All letters are in.') + '\n\nYour page has my materials, how to submit for each school, and a checklist you can tick as you go: ' + link + '\nPlease let me know if anything else would help.' + sig];
+}
+function mailTab() {
+  const r = D.recs.find(x => x.id === mailRec) || D.recs[0], [sub, body] = mailText(r, mailKind);
+  return '<p class="muted">The school list fills in from live status. Copy, paste into your email, edit freely.</p>' +
+    '<div class="row seg">' + D.recs.map(x => '<button aria-pressed="' + (x.id === r.id) + '" data-mr="' + x.id + '">' + esc(x.name) + '</button>').join('') + '</div>' +
+    '<div class="row seg">' + [['checkin', 'Friendly check-in'], ['urgent', 'Due within a week'], ['thanks', 'All done, thank you']].map(k => '<button aria-pressed="' + (k[0] === mailKind) + '" data-mk="' + k[0] + '">' + k[1] + '</button>').join('') + '</div>' +
+    '<label>Subject<input id="msub" value="' + esc(sub) + '"></label><label>Email<textarea id="mbody" class="mail">' + esc(body) + '</textarea></label>' +
+    '<div class="row"><button class="btn" id="cs">Copy subject</button><button class="btn primary" id="cb">Copy email</button><span class="muted" id="copied"></span></div>';
+}
+function copy(text, el) { navigator.clipboard.writeText(text).then(() => { el.textContent = 'Copied'; }, () => { el.textContent = 'Select and copy by hand'; }); }
+function touched() {
+  if (dirty) return;
+  dirty = true; msg = '';
+  const sv = document.getElementById('save'); sv.disabled = false;
+  document.getElementById('discard').hidden = false;
+  document.getElementById('barmsg').textContent = 'Unsaved changes to schools, materials or professors';
+}
+function wire() {
+  const $ = s => app.querySelectorAll(s);
+  document.getElementById('out').onclick = () => signOut(auth);
+  $('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; render(); });
+  $('[data-cell]').forEach(b => b.onclick = () => { const [rid, sid] = b.dataset.cell.split('|'); cycle(D.recs.find(x => x.id === rid), D.schools.find(x => x.id === sid)); });
+  $('[data-s]').forEach(el => el.oninput = el.onchange = () => { D.schools[+el.dataset.s][el.dataset.k] = el.value.trim(); touched(); });
+  $('[data-m]').forEach(el => el.oninput = () => { D.materials[+el.dataset.m][el.dataset.k] = el.value.trim(); touched(); });
+  $('[data-r]').forEach(el => el.oninput = () => { const r = D.recs[+el.dataset.r], k = el.dataset.k; r[k] = (k === 'points' || k === 'context') ? lines(el.value) : el.value.trim(); touched(); });
+  $('[data-g]').forEach(el => el.oninput = () => { D[el.dataset.g] = el.value.trim(); touched(); });
+  $('[data-rm]').forEach(b => b.onclick = () => { D.schools.splice(+b.dataset.rm, 1); dirty = true; render(); });
+  $('[data-copy]').forEach(b => b.onclick = () => copy(b.dataset.copy, b));
+  $('[data-mr]').forEach(b => b.onclick = () => { mailRec = b.dataset.mr; render(); });
+  $('[data-mk]').forEach(b => b.onclick = () => { mailKind = b.dataset.mk; render(); });
+  const add = document.getElementById('add'); if (add) add.onclick = () => { D.schools.push({ id: 's' + rand(3), program: '', due: '', time: '', method: 'portal', from: '', link: '', howto: '' }); dirty = true; render(); };
+  const cs = document.getElementById('cs'); if (cs) cs.onclick = () => copy(document.getElementById('msub').value, document.getElementById('copied'));
+  const cb = document.getElementById('cb'); if (cb) cb.onclick = () => copy(document.getElementById('mbody').value, document.getElementById('copied'));
+  document.getElementById('save').onclick = async () => { saving = true; render(); try { await publishAll(); dirty = false; msg = 'Published. Every professor’s page is updated.'; } catch (e) { msg = 'Couldn’t publish: ' + e.message; } saving = false; render(); };
+  const dc = document.getElementById('discard'); dc.onclick = () => { D = clone(M); dirty = false; msg = ''; render(); };
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Recommendation Letters · Lily Wu</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="page" id="app"><p class="muted">Loading…</p></main>
+<script type="module">
+import { firebaseConfig } from './firebase-config.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getFirestore, doc, onSnapshot, updateDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const METHOD = {
+  portal: 'Upload through the link in the school’s invitation email',
+  email: 'Email the letter',
+  mail: 'Send by mail',
+  link: 'Upload at the link below'
+};
+const app = document.getElementById('app');
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const parse = d => { if (!d) return null; const [y, m, x] = d.split('-').map(Number); return new Date(y, m - 1, x); };
+const fmt = d => { const x = parse(d); return x ? MON[x.getMonth()] + ' ' + x.getDate() : ''; };
+const today = () => { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), t.getDate()); };
+const daysLeft = d => { const x = parse(d); return x ? Math.round((x - today()) / 864e5) : null; };
+const byDue = (a, b) => (!a.due) - (!b.due) || (a.due < b.due ? -1 : a.due > b.due ? 1 : 0);
+
+const token = location.hash.replace(/^#/, '');
+let P = null, open = null, toast = '', busy = false;
+
+if (!token) {
+  app.innerHTML = '<div class="icon">✉️</div><h1>Recommendation letters</h1><p>Please open the personal link Lily sent you by email.</p>';
+} else {
+  const db = getFirestore(initializeApp(firebaseConfig));
+  const ref = doc(db, 'pages', token);
+  onSnapshot(ref, snap => {
+    if (!snap.exists()) { app.innerHTML = '<div class="icon">✉️</div><h1>This link doesn’t open a page</h1><p>Please use the exact link from Lily’s email, or reply to her and she’ll resend it.</p>'; return; }
+    P = snap.data(); render();
+  }, () => { app.innerHTML = '<h1>Can’t load right now</h1><p>Please refresh in a minute.</p>'; });
+
+  app.addEventListener('click', async e => {
+    const card = e.target.closest('[data-card]');
+    if (card) { open = open === card.dataset.card ? null : card.dataset.card; render(); return; }
+    const box = e.target.closest('[data-tick]');
+    if (box && !busy) {
+      const id = box.dataset.tick, s = P.schools.find(x => x.id === id);
+      const was = P.status[id] || 'todo';
+      const now = was === 'submitted' ? ((P.invitedOn || {})[id] ? 'invited' : 'todo') : 'submitted';
+      busy = true; P.status[id] = now; toast = ''; render();
+      try {
+        await updateDoc(ref, { ['status.' + id]: now, statusAt: serverTimestamp() });
+        toast = now === 'submitted' ? 'Checked off ' + s.program + '. Thank you!' : 'Unchecked ' + s.program + '.';
+      } catch (err) {
+        P.status[id] = was; toast = 'That didn’t save. Please try again, or just reply to Lily’s email.';
+      }
+      busy = false; render();
+    }
+  });
+}
+
+function render() {
+  const mine = P.schools.slice().sort(byDue);
+  const todo = mine.filter(s => P.status[s.id] !== 'submitted');
+  const done = mine.filter(s => P.status[s.id] === 'submitted');
+  const next = todo.find(s => s.due);
+  const dl = next ? daysLeft(next.due) : null;
+
+  let h = '<div class="icon">✉️</div><h1>Recommendation letters</h1>';
+  h += '<dl class="props">';
+  h += '<dt>For</dt><dd>' + esc(P.student) + '</dd>';
+  h += '<dt>Letters left</dt><dd>' + (todo.length ? '<span class="tag orange">' + todo.length + ' of ' + mine.length + '</span>' : '<span class="tag green">All submitted</span>') + '</dd>';
+  if (next) h += '<dt>Next due</dt><dd>' + esc(next.program) + ', ' + fmt(next.due) + (dl != null && dl >= 0 ? ' <span class="tag ' + (dl <= 10 ? 'orange' : 'grey') + '">' + (dl === 0 ? 'today' : dl === 1 ? 'tomorrow' : dl + ' days') + '</span>' : '') + '</dd>';
+  h += '<dt>Updated</dt><dd>' + fmt(P.updated) + '</dd></dl>';
+  if (P.note) h += '<div class="callout"><span class="ci">👋</span><p>' + esc(P.note) + '</p></div>';
+
+  const mats = P.materials || [], pts = P.points || [], ctx = P.context || [];
+  const cards = [
+    ['materials', '📎', 'Materials', mats.filter(m => m.url).length + ' of ' + mats.length + ' ready'],
+    ['highlights', '✨', 'What to highlight', pts.length ? pts.length + ' points' : 'Coming soon'],
+    ['together', '🎓', 'Our work together', ctx.length ? ctx.length + ' items' : 'Coming soon'],
+    ['submit', '📮', 'How to submit', 'For each school']
+  ];
+  h += '<div class="menu">' + cards.map(c => '<button class="mcard" data-card="' + c[0] + '" aria-expanded="' + (open === c[0]) + '"><span class="mi">' + c[1] + '</span><span class="mt">' + c[2] + '</span><span class="ms">' + c[3] + '</span></button>').join('') + '</div>';
+  if (open) h += '<div class="drawer">' + drawer(open, mine) + '</div>';
+
+  h += '<hr><h2>Checklist</h2><p class="muted">Check a school off once you’ve submitted. Click again to undo.</p><ul class="todo">';
+  todo.concat(done).forEach(s => {
+    const st = P.status[s.id] || 'todo', isDone = st === 'submitted', d = daysLeft(s.due);
+    let sub;
+    if (isDone) sub = 'Submitted';
+    else if ((s.method || 'portal') === 'portal') sub = st === 'invited' ? 'Invitation sent' + ((P.invitedOn || {})[s.id] ? ' ' + fmt(P.invitedOn[s.id]) : '') + (s.from ? ' · from “' + esc(s.from) + '”' : '') : 'Invitation email coming soon';
+    else sub = esc(s.howto || METHOD[s.method]);
+    h += '<li class="' + (isDone ? 'done' : '') + '"><button class="cb" role="checkbox" aria-checked="' + isDone + '" aria-label="Submitted: ' + esc(s.program) + '" data-tick="' + s.id + '"' + (busy ? ' disabled' : '') + '>✓</button>' +
+      '<span class="t"><span class="name">' + esc(s.program) + '</span><span class="sub">' + sub + '</span></span>' +
+      '<span class="due">' + (s.due ? fmt(s.due) : 'TBD') + (s.time && !isDone ? ', ' + esc(s.time) : '') + (!isDone && d != null && d >= 0 && d <= 10 ? '<br><span class="tag orange">' + (d === 0 ? 'today' : d + ' days') + '</span>' : '') + '</span></li>';
+  });
+  h += '</ul><div class="toast" role="status">' + esc(toast) + '</div>';
+  app.innerHTML = h;
+}
+
+function drawer(which, mine) {
+  if (which === 'materials') {
+    return '<ul class="files">' + (P.materials || []).map(m => m.url
+      ? '<li><a href="' + esc(m.url) + '" target="_blank" rel="noopener">📄 ' + esc(m.label) + (m.updated ? '<span class="d">updated ' + fmt(m.updated) + '</span>' : '') + '</a></li>'
+      : '<li><span>📄 ' + esc(m.label) + '<span class="d">coming soon</span></span></li>').join('') + '</ul>';
+  }
+  if (which === 'highlights') {
+    const p = P.points || [];
+    return p.length ? '<p class="muted">If it fits your letter, these are the things I’d most love you to speak to:</p><ul>' + p.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>' : '<p class="muted">I’m still writing these up.</p>';
+  }
+  if (which === 'together') {
+    const c = P.context || [];
+    return c.length ? '<ul>' + c.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>' : '<p class="muted">I’m still writing these up.</p>';
+  }
+  return '<div class="subs">' + mine.map(s => {
+    const m = s.method || 'portal';
+    let how = esc(s.howto || METHOD[m]);
+    if (m === 'portal' && s.from) how += '. Look for an email from “' + esc(s.from) + '”';
+    if (s.link) how += ' · <a href="' + esc(s.link) + '" target="_blank" rel="noopener">' + (m === 'email' || m === 'mail' ? esc(s.link) : 'Open link') + '</a>';
+    return '<div class="sb"><b>' + esc(s.program) + '</b><span class="muted">' + how + (s.due ? ' · due ' + fmt(s.due) + (s.time ? ', ' + esc(s.time) : '') : '') + '</span></div>';
+  }).join('') + '</div>';
+}
+</script>
+</body>
+</html>

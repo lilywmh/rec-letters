@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Replace with the Google account you sign in with on admin.html
+    function isLily() {
+      return request.auth != null && request.auth.token.email == "PASTE_YOUR_GMAIL_HERE";
+    }
+
+    // Master data: only Lily
+    match /admin/{docId} {
+      allow read, write: if isLily();
+    }
+
+    // One page per professor, named by a long random token.
+    // Anyone with the exact link can open that one page; nobody but Lily can list them.
+    // Professors can only change the checkmarks, nothing else.
+    match /pages/{token} {
+      allow get: if true;
+      allow list, create, delete: if isLily();
+      allow update: if isLily() || (
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'statusAt'])
+        && request.resource.data.status.keys().hasOnly(resource.data.status.keys())
+      );
+    }
+  }
+}
