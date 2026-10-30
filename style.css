@@ -45,6 +45,9 @@ h1, h2, h3 { margin: 0; line-height: 1.25; }
 .tool { border: 0; background: none; color: var(--soft); min-width: 34px; height: 34px; border-radius: 6px; font-size: 14px; font-weight: 600; display: grid; place-items: center; padding: 0 6px; }
 .tool:hover:not(:disabled) { background: var(--hover); color: var(--text); }
 .tool:disabled { opacity: .35; cursor: default; }
+.help { width: auto; gap: 7px; display: flex; align-items: center; padding: 0 10px 0 6px; font-weight: 500; }
+.help .q { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid currentColor; display: grid; place-items: center; font-size: 12px; font-weight: 700; line-height: 1; }
+@media (max-width: 560px) { .help .help-t { display: none; } .help { padding: 0 6px; } .brand span:last-child { font-size: 14px; } }
 .tools .sep { width: 1px; height: 18px; background: var(--line); margin: 0 6px; }
 
 /* professor page */
@@ -183,3 +186,5 @@ dialog.welcome::backdrop { background: rgba(15,15,15,.45); }
   @keyframes rl-pop { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+#tools { display: flex; align-items: center; }
+#howto[hidden] + .sep { display: none; }
