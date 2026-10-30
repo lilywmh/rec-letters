@@ -6,6 +6,7 @@
 <meta name="robots" content="noindex">
 <title>Letters Back Office</title>
 <link rel="stylesheet" href="style.css">
+<script src="prefs.js"></script>
 </head>
 <body>
 <main class="page wide" id="app"><p class="muted">Loading…</p></main>
@@ -18,6 +19,7 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signO
 const fb = initializeApp(firebaseConfig);
 const db = getFirestore(fb), auth = getAuth(fb);
 const app = document.getElementById('app');
+window.RLPrefs && window.RLPrefs.mount();
 const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const parse = d => { if (!d) return null; const [y, m, x] = d.split('-').map(Number); return new Date(y, m - 1, x); };
