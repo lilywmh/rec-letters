@@ -5,65 +5,73 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Recommendation Letters · Lily Wu</title>
-<link rel="stylesheet" href="style.css">
-<script src="prefs.js"></script>
+<link rel="stylesheet" href="style.css?v=3">
+<script src="prefs.js?v=3"></script>
 </head>
 <body>
-<main class="page" id="app"><p class="muted">Loading…</p></main>
+<header class="topbar gutter"><div class="in"><div class="brand"><span class="em">✉️</span><span id="brand">Recommendation letters</span></div><div id="tools"></div></div></header>
+<main class="shell gutter" id="app"><p class="muted">Loading…</p></main>
 <dialog class="welcome" id="welcome" aria-labelledby="w-title"></dialog>
 <script type="module">
-import { firebaseConfig } from './firebase-config.js';
+import { firebaseConfig } from './firebase-config.js?v=3';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getFirestore, doc, onSnapshot, updateDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+document.getElementById('tools').innerHTML = window.RLPrefs ? RLPrefs.controls() : '';
+window.RLPrefs && RLPrefs.wire();
 
 const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const METHOD = {
   portal: 'Upload through the link in the school’s invitation email',
   email: 'Email the letter',
   mail: 'Send by mail',
-  link: 'Upload at the link below'
+  link: 'Upload at the link'
 };
 const app = document.getElementById('app');
-window.RLPrefs && window.RLPrefs.mount();
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const parse = d => { if (!d) return null; const [y, m, x] = d.split('-').map(Number); return new Date(y, m - 1, x); };
 const fmt = d => { const x = parse(d); return x ? MON[x.getMonth()] + ' ' + x.getDate() : ''; };
 const today = () => { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), t.getDate()); };
 const daysLeft = d => { const x = parse(d); return x ? Math.round((x - today()) / 864e5) : null; };
 const byDue = (a, b) => (!a.due) - (!b.due) || (a.due < b.due ? -1 : a.due > b.due ? 1 : 0);
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
 
 const token = location.hash.replace(/^#/, '');
-let P = null, open = null, toast = '', busy = false;
+let P = null, toast = '', busy = false, welcomed = false;
+const openSecs = new Set(['materials']);
 
 if (!token) {
-  app.innerHTML = '<div class="icon">✉️</div><h1>Recommendation letters</h1><p>Please open the personal link Lily sent you by email.</p>';
+  app.innerHTML = '<div class="center"><div class="big">✉️</div><h1>Recommendation letters</h1><p>Please open the personal link Lily sent you by email.</p></div>';
 } else {
   const db = getFirestore(initializeApp(firebaseConfig));
   const ref = doc(db, 'pages', token);
   onSnapshot(ref, snap => {
-    if (!snap.exists()) { app.innerHTML = '<div class="icon">✉️</div><h1>This link doesn’t open a page</h1><p>Please use the exact link from Lily’s email, or reply to her and she’ll resend it.</p>'; return; }
+    if (!snap.exists()) { app.innerHTML = '<div class="center"><div class="big">✉️</div><h1>This link doesn’t open a page</h1><p>Please use the exact link from Lily’s email, or reply to her and she’ll resend it.</p></div>'; return; }
     P = snap.data(); render(); maybeWelcome();
-  }, () => { app.innerHTML = '<h1>Can’t load right now</h1><p>Please refresh in a minute.</p>'; });
+  }, () => { app.innerHTML = '<div class="center"><h1>Can’t load right now</h1><p>Please refresh in a minute.</p></div>'; });
 
+  app.addEventListener('toggle', e => { const d = e.target; if (d.matches && d.matches('details[data-sec]')) { d.open ? openSecs.add(d.dataset.sec) : openSecs.delete(d.dataset.sec); } }, true);
   app.addEventListener('click', async e => {
     if (e.target.closest('#howto')) { showWelcome(); return; }
-    const card = e.target.closest('[data-card]');
-    if (card) { open = open === card.dataset.card ? null : card.dataset.card; render(); return; }
     const box = e.target.closest('[data-tick]');
-    if (box && !busy) {
-      const id = box.dataset.tick, s = P.schools.find(x => x.id === id);
-      const was = P.status[id] || 'todo';
-      const now = was === 'submitted' ? ((P.invitedOn || {})[id] ? 'invited' : 'todo') : 'submitted';
-      busy = true; P.status[id] = now; toast = ''; render();
-      try {
-        await updateDoc(ref, { ['status.' + id]: now, statusAt: serverTimestamp() });
-        toast = now === 'submitted' ? 'Checked off ' + s.program + '. Thank you!' : 'Unchecked ' + s.program + '.';
-      } catch (err) {
-        P.status[id] = was; toast = 'That didn’t save. Please try again, or just reply to Lily’s email.';
-      }
-      busy = false; render();
+    if (!box || busy) return;
+    const id = box.dataset.tick, s = P.schools.find(x => x.id === id);
+    const was = P.status[id] || 'todo';
+    const now = was === 'submitted' ? ((P.invitedOn || {})[id] ? 'invited' : 'todo') : 'submitted';
+    busy = true; P.status[id] = now; toast = ''; render();
+    try {
+      await updateDoc(ref, { ['status.' + id]: now, statusAt: serverTimestamp() });
+      toast = now === 'submitted' ? 'Checked off ' + s.program + '. Thank you!' : 'Unchecked ' + s.program + '.';
+    } catch (err) {
+      P.status[id] = was; toast = 'That didn’t save. Please try again, or just reply to Lily’s email.';
     }
+    busy = false; render();
   });
+}
+
+function sec(id, icon, title, count, body) {
+  return '<details class="sec" data-sec="' + id + '"' + (openSecs.has(id) ? ' open' : '') + '><summary><span class="si">' + icon + '</span><span class="st">' + title + '</span><span class="sc">' + count + '</span><span class="chev">▶</span></summary><div class="body">' + body + '</div></details>';
 }
 
 function render() {
@@ -72,26 +80,45 @@ function render() {
   const done = mine.filter(s => P.status[s.id] === 'submitted');
   const next = todo.find(s => s.due);
   const dl = next ? daysLeft(next.due) : null;
+  document.getElementById('brand').textContent = 'Letters for ' + ((P.profile || {}).name || P.student || 'Lily');
 
-  let h = '<div class="icon">✉️</div><h1>Recommendation letters</h1>';
-  h += '<dl class="props">';
-  h += '<dt>For</dt><dd>' + esc(P.student) + '</dd>';
-  h += '<dt>Letters left</dt><dd>' + (todo.length ? '<span class="tag orange">' + todo.length + ' of ' + mine.length + '</span>' : '<span class="tag green">All submitted</span>') + '</dd>';
-  if (next) h += '<dt>Next due</dt><dd>' + esc(next.program) + ', ' + fmt(next.due) + (dl != null && dl >= 0 ? ' <span class="tag ' + (dl <= 10 ? 'orange' : 'grey') + '">' + (dl === 0 ? 'today' : dl === 1 ? 'tomorrow' : dl + ' days') + '</span>' : '') + '</dd>';
-  h += '<dt>Updated</dt><dd>' + fmt(P.updated) + '</dd></dl>';
-  if (P.note) h += '<div class="callout"><span class="ci">👋</span><p>' + esc(P.note) + '</p></div>';
-
+  const pf = Object.assign({ photo: 'avatar.jpg' }, P.profile || {});
+  if (!pf.photo) pf.photo = 'avatar.jpg';
+  const name = pf.name || P.student || 'Lily';
+  const initials = name.replace(/\(.*?\)/g, '').trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const hero = '<section class="hero"><h1>' + (P.salutation ? 'Hi ' + esc(P.salutation) + ' \ud83d\udc4b' : 'Recommendation letters') + '</h1>' +
+    '<p class="muted">Thank you for writing my recommendation letters. Updated ' + fmt(P.updated) + '.</p>' +
+    (P.note ? '<div class="callout"><span>\ud83d\udc8c</span><p>' + esc(P.note) + '</p></div>' : '') + '</section>';
+  let h = '';
   const mats = P.materials || [], pts = P.points || [], ctx = P.context || [];
-  const cards = [
-    ['materials', '📎', 'Materials', mats.filter(m => m.url).length + ' of ' + mats.length + ' ready'],
-    ['highlights', '✨', 'What to highlight', pts.length ? pts.length + (pts.length === 1 ? ' point' : ' points') : 'Coming soon'],
-    ['together', '🎓', 'Our work together', ctx.length ? ctx.length + (ctx.length === 1 ? ' item' : ' items') : 'Coming soon'],
-    ['submit', '📮', 'How to submit', 'For each school']
-  ];
-  h += '<div class="menu">' + cards.map(c => '<button class="mcard" data-card="' + c[0] + '" aria-expanded="' + (open === c[0]) + '"><span class="mi">' + c[1] + '</span><span class="mt">' + c[2] + '</span><span class="ms">' + c[3] + '</span></button>').join('') + '</div>';
-  if (open) h += '<div class="drawer">' + drawer(open, mine) + '</div>';
+  h += '<div class="cols"><aside class="side">';
+  h += '<div class="me">' + (pf.photo ? '<img class="avatar" src="' + esc(pf.photo) + '" alt="' + esc(name) + '">' : '<div class="avatar initials" aria-hidden="true">' + esc(initials) + '</div>') +
+    '<div class="me-name">' + esc(name) + '</div>' + (pf.tagline ? '<div class="me-tag">' + esc(pf.tagline) + '</div>' : '') +
+    '<div class="me-links">' + (pf.website ? '<a href="' + esc(pf.website) + '" target="_blank" rel="noopener">\ud83c\udf10 Website</a>' : '') + (pf.email ? '<span class="mono-ish">\u2709\ufe0f ' + esc(pf.email) + '</span>' : '') + '</div></div>';
+  h += sec('materials', '📎', 'My materials', mats.filter(m => m.url).length + ' of ' + mats.length,
+    '<ul class="files">' + mats.map(m => m.url
+      ? '<li><a href="' + esc(m.url) + '" target="_blank" rel="noopener">📄 ' + esc(m.label) + (m.updated ? '<span class="d">' + fmt(m.updated) + '</span>' : '') + '</a></li>'
+      : '<li><span class="off">📄 ' + esc(m.label) + '<span class="d">coming soon</span></span></li>').join('') + '</ul>');
+  h += sec('highlights', '✨', 'What to highlight', pts.length ? pts.length : '',
+    pts.length ? '<p class="muted" style="margin:0 0 8px">If it fits your letter, I’d love you to speak to:</p><ul>' + pts.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>' : '<p class="muted" style="margin:0">Coming soon.</p>');
+  h += sec('together', '🎓', 'Our work together', ctx.length ? ctx.length : '',
+    ctx.length ? '<ul>' + ctx.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>' : '<p class="muted" style="margin:0">Coming soon.</p>');
+  h += sec('submit', '📮', 'How to submit', '',
+    '<div class="subs">' + mine.map(s => {
+      const m = s.method || 'portal';
+      let how = esc(s.howto || METHOD[m]);
+      if (m === 'portal' && s.from) how += '. Look for an email from “' + esc(s.from) + '”';
+      if (s.link) how += ' · <a href="' + esc(s.link) + '" target="_blank" rel="noopener">' + (m === 'email' || m === 'mail' ? esc(s.link) : 'Open link') + '</a>';
+      return '<div><b>' + esc(s.program) + '</b><span class="muted">' + how + '</span></div>';
+    }).join('') + '</div>');
+  h += '<p class="muted foot"><button class="link" id="howto">How this page works</button><br>Questions? Just reply to my email.</p>';
+  h += '</aside>';
 
-  h += '<hr><h2>Checklist</h2><p class="muted">Check a school off once you’ve submitted. Click again to undo.</p><ul class="todo">';
+  const pct = mine.length ? Math.round(done.length / mine.length * 100) : 0;
+  h += '<div class="right">' + hero + '<section class="main"><div class="main-head"><div class="row"><h2>Checklist</h2><span class="muted">' + done.length + ' of ' + plural(mine.length, 'letter') + ' submitted</span></div>' +
+    '<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="' + mine.length + '" aria-valuenow="' + done.length + '"><span style="width:' + pct + '%"></span></div>' +
+    (next ? '<p class="muted" style="margin:0">Next due: <b style="color:var(--text)">' + esc(next.program) + '</b>, ' + fmt(next.due) + (dl != null && dl >= 0 ? ' (' + (dl === 0 ? 'today' : dl === 1 ? 'tomorrow' : dl + ' days') + ')' : '') + '. Tick a school when you’ve submitted.</p>' : '<p class="muted" style="margin:0">All letters are in. Thank you so much!</p>') +
+    '</div><ul class="todo">';
   todo.concat(done).forEach(s => {
     const st = P.status[s.id] || 'todo', isDone = st === 'submitted', d = daysLeft(s.due);
     let sub;
@@ -99,29 +126,25 @@ function render() {
     else if ((s.method || 'portal') === 'portal') sub = st === 'invited' ? 'Invitation sent' + ((P.invitedOn || {})[s.id] ? ' ' + fmt(P.invitedOn[s.id]) : '') + (s.from ? ' · from “' + esc(s.from) + '”' : '') : 'Invitation email coming soon';
     else sub = esc(s.howto || METHOD[s.method]);
     h += '<li class="' + (isDone ? 'done' : '') + '"><button class="cb" role="checkbox" aria-checked="' + isDone + '" aria-label="Submitted: ' + esc(s.program) + '" data-tick="' + s.id + '"' + (busy ? ' disabled' : '') + '>✓</button>' +
-      '<span class="t"><span class="name">' + esc(s.program) + '</span><span class="sub">' + sub + '</span></span>' +
-      '<span class="due">' + (s.due ? fmt(s.due) : 'TBD') + (s.time && !isDone ? ', ' + esc(s.time) : '') + (!isDone && d != null && d >= 0 && d <= 10 ? '<br><span class="tag orange">' + (d === 0 ? 'today' : d + ' days') + '</span>' : '') + '</span></li>';
+      '<span><span class="name">' + esc(s.program) + '</span><span class="sub">' + sub + '</span></span>' +
+      '<span class="due"><span>' + (s.due ? fmt(s.due) : 'TBD') + (s.time && !isDone ? ', ' + esc(s.time) : '') + '</span>' + (!isDone && d != null && d >= 0 && d <= 10 ? '<span class="tag orange">' + (d === 0 ? 'today' : d + ' days') + '</span>' : '') + '</span></li>';
   });
-  h += '</ul><div class="toast" role="status">' + esc(toast) + '</div>';
-  h += '<hr><p class="muted"><button class="link" id="howto">How this page works</button> \u00b7 Questions? Just reply to my email.</p>';
+  h += '</ul><div class="toast" role="status">' + esc(toast) + '</div></section></div></div>';
   app.innerHTML = h;
 }
 
-const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
-let welcomed = false;
 function maybeWelcome() {
   if (welcomed) return; welcomed = true;
   if (!store.get('rl-welcomed-' + token)) showWelcome();
 }
 function showWelcome() {
   const d = document.getElementById('welcome');
-  const hi = P.salutation ? 'Hi ' + esc(P.salutation) + ',' : 'Hi there,';
   d.innerHTML = '<form method="dialog" class="w-in">' +
     '<div class="w-hi">👋</div>' +
-    '<h2 id="w-title">' + hi + '</h2>' +
+    '<h2 id="w-title">' + (P.salutation ? 'Hi ' + esc(P.salutation) + ',' : 'Hi there,') + '</h2>' +
     '<p>Thank you so much for writing for me. I made this page so everything you need is in one place, and you never have to dig through old emails.</p>' +
     '<ol>' +
-      '<li><span class="wi">📎</span><span><b>Everything is in the cards</b><span class="ws">My CV, statements, what I’d love you to highlight, and how each school takes letters.</span></span></li>' +
+      '<li><span class="wi">📎</span><span><b>Everything is on the left</b><span class="ws">My CV and statements, what I’d love you to highlight, and how each school takes letters.</span></span></li>' +
       '<li><span class="wi">☑️</span><span><b>Tick a school when you submit</b><span class="ws">I’ll see it right away, so there’s no need to email me each time.</span></span></li>' +
       '<li><span class="wi">📬</span><span><b>Invitations come from each school</b><span class="ws">If one is missing or a link has expired, reply to my email and I’ll resend it.</span></span></li>' +
     '</ol>' +
@@ -129,29 +152,6 @@ function showWelcome() {
     '</form>';
   d.onclose = () => store.set('rl-welcomed-' + token, '1');
   if (typeof d.showModal === 'function') { if (!d.open) d.showModal(); } else d.setAttribute('open', '');
-}
-
-function drawer(which, mine) {
-  if (which === 'materials') {
-    return '<ul class="files">' + (P.materials || []).map(m => m.url
-      ? '<li><a href="' + esc(m.url) + '" target="_blank" rel="noopener">📄 ' + esc(m.label) + (m.updated ? '<span class="d">updated ' + fmt(m.updated) + '</span>' : '') + '</a></li>'
-      : '<li><span>📄 ' + esc(m.label) + '<span class="d">coming soon</span></span></li>').join('') + '</ul>';
-  }
-  if (which === 'highlights') {
-    const p = P.points || [];
-    return p.length ? '<p class="muted">If it fits your letter, these are the things I’d most love you to speak to:</p><ul>' + p.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>' : '<p class="muted">I’m still writing these up.</p>';
-  }
-  if (which === 'together') {
-    const c = P.context || [];
-    return c.length ? '<ul>' + c.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>' : '<p class="muted">I’m still writing these up.</p>';
-  }
-  return '<div class="subs">' + mine.map(s => {
-    const m = s.method || 'portal';
-    let how = esc(s.howto || METHOD[m]);
-    if (m === 'portal' && s.from) how += '. Look for an email from “' + esc(s.from) + '”';
-    if (s.link) how += ' · <a href="' + esc(s.link) + '" target="_blank" rel="noopener">' + (m === 'email' || m === 'mail' ? esc(s.link) : 'Open link') + '</a>';
-    return '<div class="sb"><b>' + esc(s.program) + '</b><span class="muted">' + how + (s.due ? ' · due ' + fmt(s.due) + (s.time ? ', ' + esc(s.time) : '') : '') + '</span></div>';
-  }).join('') + '</div>';
 }
 </script>
 </body>
