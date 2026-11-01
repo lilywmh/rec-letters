@@ -1,13 +1,27 @@
 # Recommendation Letter Tracker
 
+![license](https://img.shields.io/badge/license-MIT-6b7280)
+![stack](https://img.shields.io/badge/stack-HTML%20%2B%20Firebase-3b6ea8)
+![cost](https://img.shields.io/badge/cost-free-448361)
+
 A small, free website that keeps your recommenders organized during grad school
 applications. Each recommender gets a private link to a calm page that shows
 only their schools, deadlines and submission instructions, plus your materials
 and the points you hope they will highlight. They can tick a school off when
-they submit. You manage everything from one back office.
+they submit, and you see it right away in your back office.
 
-Built with plain HTML and JavaScript on GitHub Pages, with Firebase for storage
-and sign-in. No build step, no paid services.
+No build step, no paid services: plain HTML and JavaScript on GitHub Pages, with
+Firebase for storage and sign-in. Set-up takes about fifteen minutes.
+
+![A recommender's page](docs/recommender.png)
+
+<p align="center">
+  <img src="docs/recommender-mobile-dark.png" alt="Recommender page on a phone, dark mode" width="260">
+  &nbsp;&nbsp;
+  <img src="docs/back-office.png" alt="Back office status table" width="560">
+</p>
+
+<sub>Screenshots use example schools and recommenders.</sub>
 
 ## What recommenders see
 
