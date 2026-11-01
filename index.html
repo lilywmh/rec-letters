@@ -13,10 +13,9 @@
 <main class="shell gutter" id="app"><p class="muted">Loading…</p></main>
 <dialog class="welcome" id="welcome" aria-labelledby="w-title"></dialog>
 <script type="module">
-import { firebaseConfig } from './firebase-config.js?v=8';
 import { SITE } from './site.config.js?v=8';
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import { getFirestore, doc, onSnapshot, updateDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+// Firebase is loaded only for a real recommender link (see below), so ?demo works without it.
+const FB = 'https://www.gstatic.com/firebasejs/10.12.2/';
 
 document.getElementById('tools').innerHTML = '<div class="tools"><button class="tool help" id="howto" hidden><span class="q" aria-hidden="true">?</span><span class="help-t">How this page works</span></button><span class="sep" aria-hidden="true"></span></div>' + (window.RLPrefs ? RLPrefs.controls() : '');
 document.getElementById('howto').onclick = () => { if (P) showWelcome(); };
@@ -52,12 +51,21 @@ const ICON = {
 const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
 
 const token = location.hash.replace(/^#/, '');
+const DEMO = !token && new URLSearchParams(location.search).has('demo');
+const pageKey = token || (DEMO ? 'demo' : '');
 let P = null, toast = '', busy = false, welcomed = false;
 const openSecs = new Set(['materials']);
 
-if (!token) {
+if (DEMO) startDemo();
+else if (!token) {
   app.innerHTML = '<div class="center"><div class="big">✉️</div><h1>Recommendation letters</h1><p>Please open the personal link ' + esc(FIRST) + ' sent you by email.</p></div>';
-} else {
+} else startReal();
+
+async function startReal() {
+  const [{ firebaseConfig }, { initializeApp }, { getFirestore, doc, onSnapshot, updateDoc, serverTimestamp }] = await Promise.all([
+    import('./firebase-config.js?v=8'), import(FB + 'firebase-app.js'), import(FB + 'firebase-firestore.js')
+  ]).catch(() => { app.innerHTML = '<div class="center"><h1>Can’t load right now</h1><p>Please refresh in a minute.</p></div>'; return [{}, {}, {}]; });
+  if (!initializeApp) return;
   const db = getFirestore(initializeApp(firebaseConfig));
   const ref = doc(db, 'pages', token);
   onSnapshot(ref, snap => {
@@ -80,6 +88,37 @@ if (!token) {
       P.status[id] = was; toast = 'That didn’t save. Please try again, or send ' + FIRST + ' an email at ' + SITE.profile.email + '.';
     }
     busy = false; render();
+  });
+}
+
+/* Demo mode (?demo, no token): example data from demo.json, never touches Firebase.
+   Checkmarks live in memory and in this tab's sessionStorage only. */
+async function startDemo() {
+  const KEY = 'rl-demo-status';
+  const ss = { get() { try { return JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch (e) { return null; } }, set(v) { try { sessionStorage.setItem(KEY, JSON.stringify(v)); } catch (e) {} } };
+  const bar = document.createElement('div');
+  bar.className = 'demo-banner gutter';
+  bar.innerHTML = '<div class="in"><span><b>Demo</b> · example data · changes aren’t saved</span><a href="https://lilymwu.com/project-rec-letters.html">Read the case study →</a></div>';
+  document.querySelector('.topbar').after(bar);
+  try {
+    const res = await fetch('demo.json?v=1');
+    if (!res.ok) throw new Error(res.status);
+    P = (await res.json()).page;
+  } catch (e) { app.innerHTML = '<div class="center"><h1>Can’t load the demo right now</h1><p>Please refresh in a minute.</p></div>'; return; }
+  Object.assign(P.status, ss.get() || {});
+  document.getElementById('howto').hidden = false; render(); maybeWelcome();
+  app.addEventListener('toggle', e => { const d = e.target; if (d.matches && d.matches('details[data-sec]')) { d.open ? openSecs.add(d.dataset.sec) : openSecs.delete(d.dataset.sec); } }, true);
+  app.addEventListener('click', e => {
+    const ex = e.target.closest('a[href="#"]');
+    if (ex) { e.preventDefault(); toast = 'In the real page, this opens the file in Google Drive.'; render(); return; }
+    const box = e.target.closest('[data-tick]');
+    if (!box) return;
+    const id = box.dataset.tick, s = P.schools.find(x => x.id === id);
+    const was = P.status[id] || 'todo';
+    const now = was === 'submitted' ? ((P.invitedOn || {})[id] ? 'invited' : 'todo') : 'submitted';
+    P.status[id] = now; ss.set(P.status);
+    toast = now === 'submitted' ? 'Checked off ' + s.program + '. Thank you! (Demo: not saved.)' : 'Unchecked ' + s.program + '.';
+    render();
   });
 }
 
@@ -159,7 +198,7 @@ function render() {
 
 function maybeWelcome() {
   if (welcomed) return; welcomed = true;
-  if (!store.get('rl-welcomed-' + token)) showWelcome();
+  if (!store.get('rl-welcomed-' + pageKey)) showWelcome();
 }
 function showWelcome() {
   const d = document.getElementById('welcome');
@@ -175,7 +214,7 @@ function showWelcome() {
     '<p class="ws" style="margin:0">You can open this again anytime from <b style="display:inline">? How this page works</b> at the top.</p>' +
     '<div class="w-actions"><span class="sig">With gratitude, ' + esc(FIRST) + '</span><button class="btn primary" value="ok" autofocus>Sounds good</button></div>' +
     '</form>';
-  d.onclose = () => store.set('rl-welcomed-' + token, '1');
+  d.onclose = () => store.set('rl-welcomed-' + pageKey, '1');
   if (typeof d.showModal === 'function') { if (!d.open) d.showModal(); } else d.setAttribute('open', '');
 }
 </script>

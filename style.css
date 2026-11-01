@@ -203,3 +203,9 @@ dialog.welcome::backdrop { background: rgba(15,15,15,.45); }
 .ask .ask-go { margin-left: auto; color: var(--soft); font-size: 18px; }
 .ask b { font-weight: 600; }
 @media (max-width: 880px) { .social { order: 0; } }
+
+/* demo mode banner (?demo) */
+.demo-banner { background: var(--callout); border-bottom: 1px solid var(--line); font-size: 13px; color: var(--soft); }
+.demo-banner .in { max-width: 1120px; margin: 0 auto; min-height: 34px; padding: 6px 0; display: flex; align-items: center; justify-content: space-between; gap: 6px 14px; flex-wrap: wrap; zoom: var(--zoom); }
+.demo-banner b { color: var(--text); font-weight: 600; }
+.demo-banner a { color: var(--text); white-space: nowrap; }

@@ -1,0 +1,46 @@
+{
+  "_note": "Example data for ?demo mode. Fictional recommender and schools; never written to Firestore.",
+  "page": {
+    "salutation": "Prof. Lee",
+    "note": "Thank you so much for writing for me! Everything you might need is on this page. (This is a demo with example schools.)",
+    "updated": "2026-11-01",
+    "materials": [
+      { "label": "CV", "url": "#", "updated": "2026-10-28" },
+      { "label": "Transcript (unofficial)", "url": "#", "updated": "2026-10-15" },
+      { "label": "Statement of Purpose", "url": "#", "updated": "2026-10-30" },
+      { "label": "Brag sheet with course context", "url": "#", "updated": "2026-10-20" },
+      { "label": "Writing Sample", "url": "", "updated": "" }
+    ],
+    "points": [
+      "Independent research in your lab: I designed the coding scheme and ran the analysis myself",
+      "How I handled ambiguity when our first model didn't fit the data",
+      "Clear communication: I presented our results at the lab's journal club"
+    ],
+    "context": [
+      "Research assistant in the Lee Lab, Spring 2025 – present",
+      "COMM 340: Social Interaction, Fall 2024 (A)",
+      "Co-authored a conference poster, Spring 2026"
+    ],
+    "schools": [
+      { "id": "west", "program": "Westbrook University — PhD in Communication", "due": "2026-12-01", "time": "11:59 PM ET", "method": "portal", "from": "Westbrook Graduate Admissions", "link": "", "howto": "" },
+      { "id": "lake", "program": "Lakeview Institute — Information Science", "due": "2026-12-08", "time": "11:59 PM PT", "method": "portal", "from": "Lakeview Institute", "link": "", "howto": "" },
+      { "id": "harrow", "program": "Harrow College — Behavioral Science", "due": "2026-12-15", "time": "", "method": "email", "from": "", "link": "letters@harrow.example", "howto": "" },
+      { "id": "pine", "program": "Pinecrest University — Cognitive Science", "due": "2026-12-15", "time": "5:00 PM ET", "method": "link", "from": "", "link": "#", "howto": "" }
+    ],
+    "status": { "west": "submitted", "lake": "invited", "harrow": "todo", "pine": "todo" },
+    "invitedOn": { "west": "2026-10-12", "lake": "2026-10-20", "harrow": "", "pine": "" }
+  },
+  "admin": {
+    "updated": "2026-11-01",
+    "recs": [
+      { "id": "lee", "name": "Lee" },
+      { "id": "patel", "name": "Patel" },
+      { "id": "garcia", "name": "Garcia" }
+    ],
+    "status": {
+      "lee":    { "west": "submitted", "lake": "invited", "harrow": "todo", "pine": "todo" },
+      "patel":  { "west": "submitted", "lake": "submitted", "harrow": "invited", "pine": "na" },
+      "garcia": { "west": "invited", "lake": "na", "harrow": "todo", "pine": "invited" }
+    }
+  }
+}

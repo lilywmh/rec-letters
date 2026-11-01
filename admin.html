@@ -12,15 +12,22 @@
 <header class="topbar gutter"><div class="in"><div class="brand"><span class="em">🗂️</span><span>Letters back office</span></div><div class="tools-wrap row"><span id="who" class="muted"></span><div id="tools"></div></div></div></header>
 <main class="gutter" id="app"><p class="muted center">Loading…</p></main>
 <script type="module">
-import { firebaseConfig, ADMIN_EMAILS } from './firebase-config.js?v=8';
 import { SITE } from './site.config.js?v=8';
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 
-const fb = initializeApp(firebaseConfig);
-const db = getFirestore(fb), auth = getAuth(fb);
+// ?demo shows the back office with example data from demo.json and never loads Firebase.
+const DEMO = new URLSearchParams(location.search).has('demo');
 const app = document.getElementById('app');
+let ADMIN_EMAILS, db, auth, doc, getDoc, setDoc, updateDoc, collection, onSnapshot, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut;
+if (!DEMO) {
+  const FB = 'https://www.gstatic.com/firebasejs/10.12.2/';
+  const [cfg, A, F, U] = await Promise.all([import('./firebase-config.js?v=8'), import(FB + 'firebase-app.js'), import(FB + 'firebase-firestore.js'), import(FB + 'firebase-auth.js')])
+    .catch(e => { app.innerHTML = '<div class="center"><h1>Can’t load right now</h1><p>Please refresh in a minute.</p></div>'; throw e; });
+  ADMIN_EMAILS = cfg.ADMIN_EMAILS;
+  ({ doc, getDoc, setDoc, updateDoc, collection, onSnapshot } = F);
+  ({ GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } = U);
+  const fb = A.initializeApp(cfg.firebaseConfig);
+  db = F.getFirestore(fb); auth = U.getAuth(fb);
+}
 document.getElementById('tools').innerHTML = window.RLPrefs ? RLPrefs.controls() : '';
 window.RLPrefs && RLPrefs.wire();
 const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -34,6 +41,7 @@ const byDue = (a, b) => (!a.due) - (!b.due) || (a.due < b.due ? -1 : a.due > b.d
 const lines = t => String(t || '').split('\n').map(x => x.trim()).filter(Boolean);
 const rand = n => Array.from(crypto.getRandomValues(new Uint8Array(n)), b => b.toString(16).padStart(2, '0')).join('');
 const base = location.href.replace(/admin\.html.*$/, '').replace(/#.*$/, '');
+const linkOf = r => DEMO ? base.replace(/\?.*$/, '') + '?demo' : base + '#' + r.token;
 const LABEL = { todo: ['grey', 'Not invited'], invited: ['blue', 'Invited'], submitted: ['green', 'Submitted'], na: ['grey', '— Not applying'] };
 const CYCLE = ['todo', 'invited', 'submitted', 'na'];
 const METHODS = [['portal', 'Portal invitation'], ['email', 'Email'], ['mail', 'Mail'], ['link', 'Upload link']];
@@ -52,7 +60,8 @@ function fromStarter(text) {
 
 let M = null, D = null, pages = {}, tab = 'status', dirty = false, saving = false, msg = '', mailRec = 'baek', mailKind = 'checkin', unsub = null;
 
-onAuthStateChanged(auth, async user => {
+if (DEMO) startDemo();
+else onAuthStateChanged(auth, async user => {
   if (unsub) { unsub(); unsub = null; }
   if (!user) {
     app.innerHTML = '<div class="center"><div class="big">🗂️</div><h1>Letters back office</h1><p class="muted">Only ' + esc(SITE.firstName) + ' can sign in here.</p><p><button class="btn primary" id="in">Sign in with Google</button></p></div>';
@@ -80,6 +89,22 @@ const clone = o => JSON.parse(JSON.stringify(o));
 function defaultProfile() {
   return Object.assign({}, SITE.profile);
 }
+async function startDemo() {
+  const bar = document.createElement('div');
+  bar.className = 'demo-banner gutter';
+  bar.innerHTML = '<div class="in"><span><b>Demo</b> · example data · changes aren’t saved</span><a href="https://lilymwu.com/project-rec-letters.html">Read the case study →</a></div>';
+  document.querySelector('.topbar').after(bar);
+  document.getElementById('who').textContent = 'demo';
+  let x;
+  try { const r = await fetch('demo.json?v=1'); if (!r.ok) throw 0; x = await r.json(); }
+  catch (e) { app.innerHTML = '<div class="center"><h1>Can’t load the demo right now</h1><p>Please refresh in a minute.</p></div>'; return; }
+  const p = x.page, a = x.admin;
+  M = { student: SITE.profile.name, profile: defaultProfile(), note: p.note, materials: p.materials, schools: p.schools, updated: a.updated,
+    recs: a.recs.map(r => { const st = a.status[r.id] || {}; return { id: r.id, name: r.name, salutation: 'Prof. ' + r.name, token: 'demo-' + r.id, context: r.id === 'lee' ? p.context : [], points: r.id === 'lee' ? p.points : [], skip: Object.keys(st).filter(k => st[k] === 'na') }; }) };
+  M.recs.forEach(r => { const st = a.status[r.id] || {}, s = {}; Object.keys(st).forEach(k => { if (st[k] !== 'na') s[k] = st[k]; }); pages[r.token] = { status: s, invitedOn: {} }; });
+  mailRec = M.recs[0].id;
+  D = clone(M); render();
+}
 function start() {
   unsub = onSnapshot(collection(db, 'pages'), s => { pages = {}; s.forEach(d => { pages[d.id] = d.data(); }); if (tab === 'status' || tab === 'mail') render(); });
   render();
@@ -103,6 +128,12 @@ async function publishAll() {
 }
 async function cycle(r, s) {
   const cur = stOf(r, s), nxt = CYCLE[(CYCLE.indexOf(cur) + 1) % CYCLE.length];
+  if (DEMO) {
+    const rec = D.recs.find(x => x.id === r.id), skip = new Set(rec.skip || []);
+    nxt === 'na' ? skip.add(s.id) : skip.delete(s.id); rec.skip = [...skip];
+    const pg = pages[r.token]; if (nxt === 'na') delete pg.status[s.id]; else pg.status[s.id] = nxt;
+    msg = 'Demo: status changes stay in this tab only.'; render(); return;
+  }
   const rec = D.recs.find(x => x.id === r.id), mrec = M.recs.find(x => x.id === r.id);
   try {
     if (nxt === 'na' || cur === 'na') {
@@ -124,7 +155,7 @@ function render() {
   const tabs = [['status', '\ud83d\udcca', 'Status'], ['schools', '\ud83c\udfeb', 'Schools'], ['materials', '\ud83d\udcce', 'Materials'], ['people', '\ud83d\udc69\u200d\ud83c\udfeb', 'Professors'], ['profile', '\ud83d\ude42', 'My profile'], ['mail', '\u2709\ufe0f', 'Reminder email']];
   const titles = { status: 'Status', schools: 'Schools', materials: 'Materials', people: 'Professors', profile: 'My profile', mail: 'Reminder email' };
   let h = '<div class="admin"><nav class="nav" aria-label="Sections">' + tabs.map(t => '<button data-tab="' + t[0] + '"' + (t[0] === tab ? ' aria-current="page"' : '') + '><span class="ni">' + t[1] + '</span>' + t[2] + '</button>').join('') +
-    '<div class="nav-foot"><button class="link" id="out">Sign out</button></div></nav>';
+    '<div class="nav-foot"><button class="link" id="out">' + (DEMO ? 'Recommender demo' : 'Sign out') + '</button></div></nav>';
   h += '<div class="content"><h1>' + titles[tab] + '</h1>' + ({ status: statusTab, schools: schoolsTab, materials: materialsTab, people: peopleTab, profile: profileTab, mail: mailTab })[tab]() + '</div></div>';
   h += '<div class="savebar gutter"><div class="in"><button class="btn primary" id="save"' + (!dirty || saving ? ' disabled' : '') + '>' + (saving ? 'Publishing\u2026' : 'Publish changes') + '</button>' +
     '<button class="btn" id="discard"' + (dirty && !saving ? '' : ' hidden') + '>Discard</button>' +
@@ -167,7 +198,7 @@ function materialsTab() {
 function peopleTab() {
   return '<p class="muted">Each professor’s link opens only their own page. For highlights, name 2 or 3 specific strengths plainly. Don’t be modest.</p>' + D.recs.map((r, i) =>
     '<div class="block"><h3 class="wide">' + esc(r.salutation || r.name) + '</h3>' +
-    '<div class="wide row"><span class="mono">' + esc(base + '#' + r.token) + '</span><button class="btn" data-copy="' + esc(base + '#' + r.token) + '">Copy link</button><a class="btn" style="text-decoration:none" href="' + esc(base + '#' + r.token) + '" target="_blank" rel="noopener">Open their page</a></div>' +
+    '<div class="wide row"><span class="mono">' + esc(linkOf(r)) + '</span><button class="btn" data-copy="' + esc(linkOf(r)) + '">Copy link</button><a class="btn" style="text-decoration:none" href="' + esc(linkOf(r)) + '" target="_blank" rel="noopener">Open their page</a></div>' +
     '<label>How you address them<input data-r="' + i + '" data-k="salutation" value="' + esc(r.salutation) + '"></label>' +
     '<label>Column name<input data-r="' + i + '" data-k="name" value="' + esc(r.name) + '"></label>' +
     '<label class="wide">Our work together: course, semester, grade, projects (one per line)<textarea data-r="' + i + '" data-k="context">' + esc((r.context || []).join('\n')) + '</textarea></label>' +
@@ -178,7 +209,7 @@ function mailText(r, kind) {
   const mine = D.schools.filter(s => stOf(r, s) !== 'na');
   const open = mine.filter(s => stOf(r, s) !== 'submitted').sort(byDue);
   const soon = open.filter(s => { const d = daysLeft(s.due); return d != null && d >= 0 && d <= 7; });
-  const link = base + '#' + r.token;
+  const link = linkOf(r);
   const line = s => '  • ' + s.program + ', due ' + (s.due ? fmt(s.due) : 'TBD') + (s.time ? ' ' + s.time : '') + (stOf(r, s) === 'todo' && (s.method || 'portal') === 'portal' ? ' (invitation coming soon)' : '');
   const sig = '\n\nThank you so much,\n' + SITE.firstName;
   if (kind === 'thanks') return ['Thank you for my recommendation letters', 'Dear ' + r.salutation + ',\n\nAll of my recommendation letters are in, and I wanted to say thank you. I really appreciate the time you took to write for me, and I will let you know how things go this spring.' + sig];
@@ -203,7 +234,7 @@ function touched() {
 }
 function wire() {
   const $ = s => app.querySelectorAll(s);
-  document.getElementById('out').onclick = () => signOut(auth);
+  document.getElementById('out').onclick = () => { if (DEMO) location.href = './?demo'; else signOut(auth); };
   $('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; render(); });
   $('[data-cell]').forEach(b => b.onclick = () => { const [rid, sid] = b.dataset.cell.split('|'); cycle(D.recs.find(x => x.id === rid), D.schools.find(x => x.id === sid)); });
   $('[data-s]').forEach(el => el.oninput = el.onchange = () => { D.schools[+el.dataset.s][el.dataset.k] = el.value.trim(); touched(); });
@@ -218,7 +249,7 @@ function wire() {
   const add = document.getElementById('add'); if (add) add.onclick = () => { D.schools.push({ id: 's' + rand(3), program: '', due: '', time: '', method: 'portal', from: '', link: '', howto: '' }); dirty = true; render(); };
   const cs = document.getElementById('cs'); if (cs) cs.onclick = () => copy(document.getElementById('msub').value, document.getElementById('copied'));
   const cb = document.getElementById('cb'); if (cb) cb.onclick = () => copy(document.getElementById('mbody').value, document.getElementById('copied'));
-  document.getElementById('save').onclick = async () => { saving = true; render(); try { await publishAll(); dirty = false; msg = 'Published. Every professor’s page is updated.'; } catch (e) { msg = 'Couldn’t publish: ' + e.message; } saving = false; render(); };
+  document.getElementById('save').onclick = async () => { if (DEMO) { msg = 'Demo: nothing is published.'; dirty = false; D = clone(M); render(); return; } saving = true; render(); try { await publishAll(); dirty = false; msg = 'Published. Every professor’s page is updated.'; } catch (e) { msg = 'Couldn’t publish: ' + e.message; } saving = false; render(); };
   const dc = document.getElementById('discard'); dc.onclick = () => { D = clone(M); dirty = false; msg = ''; render(); };
 }
 </script>

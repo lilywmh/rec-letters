@@ -13,6 +13,8 @@ they submit, and you see it right away in your back office.
 No build step, no paid services: plain HTML and JavaScript on GitHub Pages, with
 Firebase for storage and sign-in. Set-up takes about fifteen minutes.
 
+Try the demo: https://lilywmh.github.io/rec-letters/?demo
+
 ![A recommender's page](docs/recommender.png)
 
 <p align="center">
