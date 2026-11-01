@@ -4,16 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
-<title>Recommendation Letters · Lily Wu</title>
-<link rel="stylesheet" href="style.css?v=7">
-<script src="prefs.js?v=7"></script>
+<title>Recommendation Letters</title>
+<link rel="stylesheet" href="style.css?v=8">
+<script src="prefs.js?v=8"></script>
 </head>
 <body>
 <header class="topbar gutter"><div class="in"><div class="brand"><span class="em">✉️</span><span id="brand">Recommendation letters</span></div><div id="tools"></div></div></header>
 <main class="shell gutter" id="app"><p class="muted">Loading…</p></main>
 <dialog class="welcome" id="welcome" aria-labelledby="w-title"></dialog>
 <script type="module">
-import { firebaseConfig } from './firebase-config.js?v=7';
+import { firebaseConfig } from './firebase-config.js?v=8';
+import { SITE } from './site.config.js?v=8';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getFirestore, doc, onSnapshot, updateDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
@@ -36,12 +37,9 @@ const today = () => { const t = new Date(); return new Date(t.getFullYear(), t.g
 const daysLeft = d => { const x = parse(d); return x ? Math.round((x - today()) / 864e5) : null; };
 const byDue = (a, b) => (!a.due) - (!b.due) || (a.due < b.due ? -1 : a.due > b.due ? 1 : 0);
 const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
-const DEFAULT_PROFILE = {
-  name: 'Meihui (Lily) Wu', photo: 'avatar.jpg',
-  major: 'Applied & Computational Mathematics and Cognitive Science, USC', classOf: 'Class of 2027',
-  email: 'wulily@usc.edu', website: 'https://lilywmh.github.io',
-  linkedin: 'https://www.linkedin.com/in/meihui-lily-wu', github: 'https://github.com/lilywmh'
-};
+const DEFAULT_PROFILE = SITE.profile;
+const FIRST = SITE.firstName;
+document.title = 'Recommendation Letters \u00b7 ' + SITE.profile.name;
 const svg = d => '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>';
 const ICON = {
   cap: svg('<path d="M22 9 12 4 2 9l10 5 10-5z"/><path d="M6 11v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/><path d="M22 9v6"/>'),
@@ -58,12 +56,12 @@ let P = null, toast = '', busy = false, welcomed = false;
 const openSecs = new Set(['materials']);
 
 if (!token) {
-  app.innerHTML = '<div class="center"><div class="big">✉️</div><h1>Recommendation letters</h1><p>Please open the personal link Lily sent you by email.</p></div>';
+  app.innerHTML = '<div class="center"><div class="big">✉️</div><h1>Recommendation letters</h1><p>Please open the personal link ' + esc(FIRST) + ' sent you by email.</p></div>';
 } else {
   const db = getFirestore(initializeApp(firebaseConfig));
   const ref = doc(db, 'pages', token);
   onSnapshot(ref, snap => {
-    if (!snap.exists()) { app.innerHTML = '<div class="center"><div class="big">✉️</div><h1>This link doesn’t open a page</h1><p>Please use the exact link from Lily’s email, or reply to her and she’ll resend it.</p></div>'; return; }
+    if (!snap.exists()) { app.innerHTML = '<div class="center"><div class="big">✉️</div><h1>This link doesn’t open a page</h1><p>Please use the exact link from ' + esc(FIRST) + '’s email, or reply and it will be resent.</p></div>'; return; }
     P = snap.data(); document.getElementById('howto').hidden = false; render(); maybeWelcome();
   }, () => { app.innerHTML = '<div class="center"><h1>Can’t load right now</h1><p>Please refresh in a minute.</p></div>'; });
 
@@ -79,7 +77,7 @@ if (!token) {
       await updateDoc(ref, { ['status.' + id]: now, statusAt: serverTimestamp() });
       toast = now === 'submitted' ? 'Checked off ' + s.program + '. Thank you!' : 'Unchecked ' + s.program + '.';
     } catch (err) {
-      P.status[id] = was; toast = 'That didn’t save. Please try again, or send Lily an email at wulily@usc.edu.';
+      P.status[id] = was; toast = 'That didn’t save. Please try again, or send ' + FIRST + ' an email at ' + SITE.profile.email + '.';
     }
     busy = false; render();
   });
@@ -95,13 +93,13 @@ function render() {
   const done = mine.filter(s => P.status[s.id] === 'submitted');
   const next = todo.find(s => s.due);
   const dl = next ? daysLeft(next.due) : null;
-  document.getElementById('brand').textContent = 'Letters for ' + ((P.profile || {}).name || P.student || 'Lily');
+  document.getElementById('brand').textContent = 'Letters for ' + ((P.profile || {}).name || P.student || FIRST);
 
   const pf = Object.assign({}, DEFAULT_PROFILE, P.profile || {});
   Object.keys(DEFAULT_PROFILE).forEach(k => { if (pf[k] === undefined || pf[k] === null) pf[k] = DEFAULT_PROFILE[k]; });
   if (!pf.photo || pf.photo === 'avatar.jpg') pf.photo = 'avatar.jpg?v=4';
   if (!pf.major && pf.tagline) pf.major = pf.tagline;
-  const name = pf.name || P.student || 'Lily';
+  const name = pf.name || P.student || FIRST;
   const initials = name.replace(/\(.*?\)/g, '').trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
   const hero = '<section class="hero"><h1>' + (P.salutation ? 'Hi ' + esc(P.salutation) + ' \ud83d\udc4b' : 'Recommendation letters') + '</h1>' +
     '<p class="muted">Thank you for writing my recommendation letters. Updated ' + fmt(P.updated) + '.</p>' +
@@ -135,7 +133,7 @@ function render() {
       if (s.link) how += ' · <a href="' + esc(s.link) + '" target="_blank" rel="noopener">' + (m === 'email' || m === 'mail' ? esc(s.link) : 'Open link') + '</a>';
       return '<div><b>' + esc(s.program) + '</b><span class="muted">' + how + '</span></div>';
     }).join('') + '</div>');
-  const mail = pf.email || 'wulily@usc.edu';
+  const mail = pf.email || SITE.profile.email;
   h += '</aside>';
 
   const pct = mine.length ? Math.round(done.length / mine.length * 100) : 0;
@@ -175,7 +173,7 @@ function showWelcome() {
       '<li><span class="wi">📬</span><span><b>Invitations come from each school</b><span class="ws">If one is missing or a link has expired, send me an email and I’ll resend it.</span></span></li>' +
     '</ol>' +
     '<p class="ws" style="margin:0">You can open this again anytime from <b style="display:inline">? How this page works</b> at the top.</p>' +
-    '<div class="w-actions"><span class="sig">With gratitude, Lily</span><button class="btn primary" value="ok" autofocus>Sounds good</button></div>' +
+    '<div class="w-actions"><span class="sig">With gratitude, ' + esc(FIRST) + '</span><button class="btn primary" value="ok" autofocus>Sounds good</button></div>' +
     '</form>';
   d.onclose = () => store.set('rl-welcomed-' + token, '1');
   if (typeof d.showModal === 'function') { if (!d.open) d.showModal(); } else d.setAttribute('open', '');

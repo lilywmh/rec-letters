@@ -1,39 +1,69 @@
-# rec-letters
+# Recommendation Letter Tracker
 
-推荐信进度页。教授打开自己的专属链接，就能看到材料、提交方式和 checklist，交完可以自己打勾。你在 `admin.html` 后台统一管理所有内容。
+A small, free website that keeps your recommenders organized during grad school
+applications. Each recommender gets a private link to a calm page that shows
+only their schools, deadlines and submission instructions, plus your materials
+and the points you hope they will highlight. They can tick a school off when
+they submit. You manage everything from one back office.
 
-- 教授页面：`https://lilywmh.github.io/rec-letters/#<专属码>`（专属码在后台的 Professors 标签里复制）
-- 你的后台：`https://lilywmh.github.io/rec-letters/admin.html`
+Built with plain HTML and JavaScript on GitHub Pages, with Firebase for storage
+and sign-in. No build step, no paid services.
 
-## 一次性设置（约 10 分钟）
+## What recommenders see
 
-### 1. 上传文件
-在 GitHub 仓库页面点 **Add file → Upload files**，把这 6 个文件拖进去：
-`index.html`、`admin.html`、`style.css`、`firebase-config.js`、`firestore.rules`、`README.md`，然后点 Commit。
+- A short welcome card explaining how the page works, shown on first visit
+- Your photo, program, and links, so they remember who you are
+- A checklist of their schools, sorted by deadline, with how to submit each one
+- Your CV, statements and other materials, and what you'd love them to highlight
+- Light and dark mode and adjustable text size
 
-### 2. 打开 GitHub Pages
-仓库里点 **Settings → Pages**，Source 选 **Deploy from a branch**，Branch 选 `main`、文件夹选 `/ (root)`，然后 Save。等一两分钟，网站就上线了。
+## What you get
 
-### 3. 建 Firebase 项目
-1. 打开 console.firebase.google.com，点 **Add project**，名字随便取（比如 rec-letters）。Analytics 可以关掉。
-2. 进入项目后点 **</>（Web）** 添加一个 Web app，把生成的 `firebaseConfig` 里的几行复制下来。
-3. 左侧菜单进 **Build → Firestore Database → Create database**，选 production mode，地区选 `us-west`。
-4. 左侧菜单进 **Build → Authentication → Get started**，在 Sign-in method 里开启 **Google**。
-5. 在 Authentication → **Settings → Authorized domains** 里点 Add domain，填入 `lilywmh.github.io`。
+- A status table of every school × recommender, updated live when they tick a box
+- Editors for schools, deadlines, materials and each recommender's notes
+- Ready-to-send reminder emails (friendly check-in, due this week, thank you)
+- Private pages: each recommender's page is addressed by a long random token, and
+  only your Google account can read the full list
 
-### 4. 填配置
-- 在 GitHub 上打开 `firebase-config.js`，点铅笔图标编辑。把 `PASTE_HERE` 换成第 3 步复制的值，`ADMIN_EMAILS` 里填你登录用的邮箱，然后保存。
-- 打开 Firebase 的 **Firestore → Rules**，把 `firestore.rules` 的全部内容粘贴进去，把里面的 Gmail 换成你的，再点 Publish。
+## Use it for your own applications
 
-### 5. 第一次登录
-打开 `admin.html`，用 Google 登录。把 `starter.json` 的全部内容粘贴进输入框，点 **Load starter data**。
-`starter.json` **不要上传到仓库**，它只在你自己电脑上用这一次。仓库里只有代码，不含任何个人信息。
+1. **Copy the repository.** Click *Use this template* (or fork), then turn on
+   GitHub Pages under *Settings → Pages → Deploy from a branch → main / root*.
+2. **Create a Firebase project** at console.firebase.google.com, add a Web app,
+   enable **Firestore** (production mode) and **Authentication → Google**, and add
+   `<your-username>.github.io` under *Authentication → Settings → Authorized domains*.
+3. **Edit three files:**
+   - `firebase-config.js`: paste your Firebase web config and your Google email(s)
+   - `firestore.rules`: put the same email(s) in `isOwner()`, then paste the whole
+     file into *Firestore → Rules* and publish
+   - `site.config.js`: your name, photo, program and links; replace `avatar.jpg`
+4. **Load your data.** Open `admin.html` on your site, sign in, and paste a copy of
+   `starter.example.json` filled in with your schools and recommenders. Keep that
+   file on your computer; it does not belong in the repository.
+5. **Send links.** In the back office, open *Professors*, copy each link, and email it.
 
-## 日常使用
-- **改状态**：在 Status 标签里点格子，会立刻保存。
-- **改学校、材料链接、写信要点**：改完点底部的 **Publish changes**，所有教授的页面会一起更新。
-- **催信**：在 Reminder email 标签里选教授和情况，复制邮件就能用。
+A step-by-step guide in Chinese is in [`docs/SETUP_zh.md`](docs/SETUP_zh.md).
 
-## 隐私
-这个仓库可以设为公开：代码里没有你的学校、教授或材料信息，`firebase-config.js` 里的值也可以公开，真正保护数据的是 Firebase 的规则。
-每位教授的页面用一串随机码命名。只有拿到准确链接的人才能打开那一页，没有人能列出或猜到其他页面。总表只有你登录后才能看到。教授只能修改自己页面上的勾选状态，其他内容都改不了。
+## Privacy
+
+The repository contains only code. Your schools, recommenders and notes live in
+Firestore, protected by `firestore.rules`: anyone with a recommender's exact link
+can read that one page and change only its checkmarks; nobody but you can list
+pages or read the master data. Material links (e.g. Google Drive) are only as
+private as their own sharing settings.
+
+## Files
+
+| file | purpose |
+|---|---|
+| `index.html` | recommender page |
+| `admin.html` | your back office |
+| `site.config.js` | your name, photo and links |
+| `firebase-config.js` | Firebase project and owner email(s) |
+| `firestore.rules` | database access rules |
+| `style.css`, `prefs.js` | styling, light/dark mode and text size |
+| `starter.example.json` | format for your initial data |
+
+## License
+
+MIT. Made by Meihui (Lily) Wu for her own PhD applications; feel free to use it for yours.

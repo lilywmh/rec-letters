@@ -2,23 +2,23 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // The Google accounts Lily signs in with on admin.html
-    function isLily() {
+    // The Google account(s) that own this site and can sign in to admin.html
+    function isOwner() {
       return request.auth != null && request.auth.token.email in ["wumeihui.lily@gmail.com", "wulily@usc.edu"];
     }
 
-    // Master data: only Lily
+    // Master data: owner only
     match /admin/{docId} {
-      allow read, write: if isLily();
+      allow read, write: if isOwner();
     }
 
     // One page per professor, named by a long random token.
-    // Anyone with the exact link can open that one page; nobody but Lily can list them.
+    // Anyone with the exact link can open that one page; nobody but the owner can list them.
     // Professors can only change the checkmarks, nothing else.
     match /pages/{token} {
       allow get: if true;
-      allow list, create, delete: if isLily();
-      allow update: if isLily() || (
+      allow list, create, delete: if isOwner();
+      allow update: if isOwner() || (
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'statusAt'])
         && request.resource.data.status.keys().hasOnly(resource.data.status.keys())
       );

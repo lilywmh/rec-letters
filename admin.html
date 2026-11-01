@@ -5,14 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Letters Back Office</title>
-<link rel="stylesheet" href="style.css?v=7">
-<script src="prefs.js?v=7"></script>
+<link rel="stylesheet" href="style.css?v=8">
+<script src="prefs.js?v=8"></script>
 </head>
 <body>
 <header class="topbar gutter"><div class="in"><div class="brand"><span class="em">🗂️</span><span>Letters back office</span></div><div class="tools-wrap row"><span id="who" class="muted"></span><div id="tools"></div></div></div></header>
 <main class="gutter" id="app"><p class="muted center">Loading…</p></main>
 <script type="module">
-import { firebaseConfig, ADMIN_EMAILS } from './firebase-config.js?v=7';
+import { firebaseConfig, ADMIN_EMAILS } from './firebase-config.js?v=8';
+import { SITE } from './site.config.js?v=8';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
@@ -54,17 +55,17 @@ let M = null, D = null, pages = {}, tab = 'status', dirty = false, saving = fals
 onAuthStateChanged(auth, async user => {
   if (unsub) { unsub(); unsub = null; }
   if (!user) {
-    app.innerHTML = '<div class="icon">🗂️</div><h1>Letters back office</h1><p class="muted">Only Lily can sign in here.</p><p><button class="btn primary" id="in">Sign in with Google</button></p>';
+    app.innerHTML = '<div class="center"><div class="big">🗂️</div><h1>Letters back office</h1><p class="muted">Only ' + esc(SITE.firstName) + ' can sign in here.</p><p><button class="btn primary" id="in">Sign in with Google</button></p></div>';
     document.getElementById('in').onclick = () => signInWithPopup(auth, new GoogleAuthProvider()).catch(e => { msg = e.message; });
     return;
   }
   if (!ADMIN_EMAILS.includes(user.email)) {
-    app.innerHTML = '<h1>Not your back office</h1><p>' + esc(user.email) + ' can’t manage these letters.</p><button class="btn" id="out">Sign out</button>';
+    app.innerHTML = '<div class="center"><h1>Not your back office</h1><p>' + esc(user.email) + ' can’t manage these letters.</p><p><button class="btn" id="out">Sign out</button></p></div>';
     document.getElementById('out').onclick = () => signOut(auth); return;
   }
   const snap = await getDoc(doc(db, 'admin', 'master'));
   if (!snap.exists()) {
-    app.innerHTML = '<div class="icon">🗂️</div><h1>Set up your letters</h1><p>Nothing is saved yet. Open <b>starter.json</b> (the file Claude sent you), copy everything in it, and paste it here. You can change everything afterwards.</p>' +
+    app.innerHTML = '<div class="center"><div class="big">🗂️</div><h1>Set up your letters</h1><p>Nothing is saved yet. Paste your starter data (see <b>starter.example.json</b> in the repository for the format) and press Load. You can change everything afterwards.</p>' +
       '<label>Starter data<textarea id="starter" class="mail" placeholder="{ &quot;student&quot;: ... }"></textarea></label><p class="row"><button class="btn primary" id="seed">Load starter data</button><span class="muted" id="seedmsg"></span></p></div>';
     document.getElementById('seed').onclick = async () => {
       try { document.getElementById('who').textContent = user.email; M = fromStarter(document.getElementById('starter').value); D = clone(M); await publishAll(); start(); }
@@ -77,7 +78,7 @@ onAuthStateChanged(auth, async user => {
 });
 const clone = o => JSON.parse(JSON.stringify(o));
 function defaultProfile() {
-  return { name: 'Meihui (Lily) Wu', photo: 'avatar.jpg', major: 'Applied & Computational Mathematics and Cognitive Science, USC', classOf: 'Class of 2027', email: 'wulily@usc.edu', website: 'https://lilywmh.github.io', linkedin: 'https://www.linkedin.com/in/meihui-lily-wu', github: 'https://github.com/lilywmh' };
+  return Object.assign({}, SITE.profile);
 }
 function start() {
   unsub = onSnapshot(collection(db, 'pages'), s => { pages = {}; s.forEach(d => { pages[d.id] = d.data(); }); if (tab === 'status' || tab === 'mail') render(); });
@@ -179,7 +180,7 @@ function mailText(r, kind) {
   const soon = open.filter(s => { const d = daysLeft(s.due); return d != null && d >= 0 && d <= 7; });
   const link = base + '#' + r.token;
   const line = s => '  • ' + s.program + ', due ' + (s.due ? fmt(s.due) : 'TBD') + (s.time ? ' ' + s.time : '') + (stOf(r, s) === 'todo' && (s.method || 'portal') === 'portal' ? ' (invitation coming soon)' : '');
-  const sig = '\n\nThank you so much,\nLily';
+  const sig = '\n\nThank you so much,\n' + SITE.firstName;
   if (kind === 'thanks') return ['Thank you for my recommendation letters', 'Dear ' + r.salutation + ',\n\nAll of my recommendation letters are in, and I wanted to say thank you. I really appreciate the time you took to write for me, and I will let you know how things go this spring.' + sig];
   if (kind === 'urgent') { const l = soon.length ? soon : open.slice(0, 1); return ['Recommendation letter due ' + (l[0] && l[0].due ? fmt(l[0].due) : 'soon'), 'Dear ' + r.salutation + ',\n\nI hope you are doing well. A quick reminder that ' + (l.length === 1 ? 'this letter is' : 'these letters are') + ' due in the next few days:\n\n' + l.map(line).join('\n') + '\n\nIf the invitation email is hard to find, I am happy to resend it. Everything is also on your page, where you can check off a letter once it is in: ' + link + sig]; }
   return ['Recommendation letters: quick update', 'Dear ' + r.salutation + ',\n\nI hope your week is going well. Here is a quick update on my applications. ' + (open.length ? (open.length === 1 ? 'One letter is still open:' : open.length + ' letters are still open:') + '\n\n' + open.map(line).join('\n') : 'All letters are in.') + '\n\nYour page has my materials, how to submit for each school, and a checklist you can tick as you go: ' + link + '\nPlease let me know if anything else would help.' + sig];

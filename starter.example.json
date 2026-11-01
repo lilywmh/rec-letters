@@ -1,0 +1,59 @@
+{
+  "student": "Your Name",
+  "note": "Thank you so much for writing for me! Everything you might need is on this page.",
+  "materials": [
+    {
+      "label": "CV",
+      "url": "",
+      "updated": ""
+    },
+    {
+      "label": "Transcript (unofficial)",
+      "url": "",
+      "updated": ""
+    },
+    {
+      "label": "Statement of Purpose",
+      "url": "",
+      "updated": ""
+    },
+    {
+      "label": "Writing Sample",
+      "url": "",
+      "updated": ""
+    }
+  ],
+  "schools": [
+    {
+      "program": "Example University · Psychology PhD",
+      "due": "2026-12-01",
+      "time": "11:59 PM ET",
+      "method": "portal",
+      "from": "Example University"
+    },
+    {
+      "program": "Sample Institute · Computer Science PhD",
+      "due": "2026-12-15",
+      "method": "email",
+      "link": "letters@sample.edu"
+    }
+  ],
+  "recs": [
+    {
+      "id": "smith",
+      "name": "Smith",
+      "salutation": "Professor Smith",
+      "context": [
+        "Research assistant in the Smith Lab, 2025–2026"
+      ]
+    },
+    {
+      "id": "lee",
+      "name": "Lee",
+      "salutation": "Dr. Lee",
+      "context": [
+        "PSYC 301, Fall 2025 (A)"
+      ]
+    }
+  ]
+}
