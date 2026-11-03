@@ -11,6 +11,9 @@
       { "label": "Brag sheet with course context", "url": "#", "updated": "2026-10-20" },
       { "label": "Writing Sample", "url": "", "updated": "" }
     ],
+    "own": [
+      { "label": "Final project report from your course", "url": "#", "updated": "2026-10-25" }
+    ],
     "points": [
       "Independent research in your lab: I designed the coding scheme and ran the analysis myself",
       "How I handled ambiguity when our first model didn't fit the data",

@@ -51,7 +51,7 @@ function fromStarter(text) {
   const x = JSON.parse(text);
   if (!Array.isArray(x.schools) || !Array.isArray(x.recs)) throw new Error('This doesn’t look like the starter file. It needs "schools" and "recs".');
   x.schools.forEach(s => { s.id = s.id || 's' + rand(3); s.method = s.method || 'portal'; ['time', 'from', 'link', 'howto'].forEach(k => { s[k] = s[k] || ''; }); });
-  x.recs.forEach(r => { r.token = r.token || r.id + '-' + rand(9); r.context = r.context || []; r.points = r.points || []; r.skip = r.skip || []; });
+  x.recs.forEach(r => { r.token = r.token || r.id + '-' + rand(9); r.context = r.context || []; r.points = r.points || []; r.materials = r.materials || []; r.skip = r.skip || []; });
   x.materials = x.materials || [];
   x.profile = Object.assign(defaultProfile(), x.profile || {});
   x.updated = iso(today());
@@ -118,7 +118,7 @@ function pageFor(r, prev) {
   const schools = D.schools.filter(s => !(r.skip || []).includes(s.id));
   const status = {}, invitedOn = {};
   schools.forEach(s => { status[s.id] = (prev && prev.status && prev.status[s.id]) || 'todo'; invitedOn[s.id] = (prev && prev.invitedOn && prev.invitedOn[s.id]) || ''; });
-  return { student: D.student, profile: D.profile || defaultProfile(), note: D.note, salutation: r.salutation, materials: D.materials, context: r.context || [], points: r.points || [], schools, status, invitedOn, updated: iso(today()) };
+  return { student: D.student, profile: D.profile || defaultProfile(), note: D.note, salutation: r.salutation, materials: D.materials, own: r.materials || [], context: r.context || [], points: r.points || [], schools, status, invitedOn, updated: iso(today()) };
 }
 async function publishAll() {
   D.updated = iso(today());
@@ -195,6 +195,11 @@ function materialsTab() {
     '<div class="block"><label class="wide">' + esc(m.label) + '<input data-m="' + i + '" data-k="url" placeholder="https://drive.google.com/..." value="' + esc(m.url) + '"></label>' +
     '<label>Last updated<input type="date" data-m="' + i + '" data-k="updated" value="' + esc(m.updated) + '"></label></div>').join('');
 }
+/* "Label | link" -> material; a line with no link shows as coming soon. */
+function toMat(line) {
+  const i = line.lastIndexOf('|');
+  return i < 0 ? { label: line.trim(), url: '', updated: '' } : { label: line.slice(0, i).trim(), url: line.slice(i + 1).trim(), updated: '' };
+}
 function peopleTab() {
   return '<p class="muted">Each professor’s link opens only their own page. For highlights, name 2 or 3 specific strengths plainly. Don’t be modest.</p>' + D.recs.map((r, i) =>
     '<div class="block"><h3 class="wide">' + esc(r.salutation || r.name) + '</h3>' +
@@ -202,7 +207,8 @@ function peopleTab() {
     '<label>How you address them<input data-r="' + i + '" data-k="salutation" value="' + esc(r.salutation) + '"></label>' +
     '<label>Column name<input data-r="' + i + '" data-k="name" value="' + esc(r.name) + '"></label>' +
     '<label class="wide">Our work together: course, semester, grade, projects (one per line)<textarea data-r="' + i + '" data-k="context">' + esc((r.context || []).join('\n')) + '</textarea></label>' +
-    '<label class="wide">What to highlight (2 or 3 lines)<textarea data-r="' + i + '" data-k="points" placeholder="e.g. Led the Kin project team and kept four people on schedule">' + esc((r.points || []).join('\n')) + '</textarea></label></div>').join('') +
+    '<label class="wide">What to highlight (2 or 3 lines)<textarea data-r="' + i + '" data-k="points" placeholder="e.g. Led the Kin project team and kept four people on schedule">' + esc((r.points || []).join('\n')) + '</textarea></label>' +
+    '<label class="wide">Materials just for them, shown in their letter notes (one per line: Label | link)<textarea data-r="' + i + '" data-k="materials" placeholder="e.g. Final project report | https://drive.google.com/...">' + esc((r.materials || []).map(m => m.label + (m.url ? ' | ' + m.url : '')).join('\n')) + '</textarea></label></div>').join('') +
     '<div class="block"><h3 class="wide">Shared</h3><label class="wide">Note at the top of every page<textarea data-g="note">' + esc(D.note) + '</textarea></label></div>';
 }
 function mailText(r, kind) {
@@ -239,7 +245,7 @@ function wire() {
   $('[data-cell]').forEach(b => b.onclick = () => { const [rid, sid] = b.dataset.cell.split('|'); cycle(D.recs.find(x => x.id === rid), D.schools.find(x => x.id === sid)); });
   $('[data-s]').forEach(el => el.oninput = el.onchange = () => { D.schools[+el.dataset.s][el.dataset.k] = el.value.trim(); touched(); });
   $('[data-m]').forEach(el => el.oninput = () => { D.materials[+el.dataset.m][el.dataset.k] = el.value.trim(); touched(); });
-  $('[data-r]').forEach(el => el.oninput = () => { const r = D.recs[+el.dataset.r], k = el.dataset.k; r[k] = (k === 'points' || k === 'context') ? lines(el.value) : el.value.trim(); touched(); });
+  $('[data-r]').forEach(el => el.oninput = () => { const r = D.recs[+el.dataset.r], k = el.dataset.k; r[k] = k === 'materials' ? lines(el.value).map(toMat) : (k === 'points' || k === 'context') ? lines(el.value) : el.value.trim(); touched(); });
   $('[data-g]').forEach(el => el.oninput = () => { D[el.dataset.g] = el.value.trim(); touched(); });
   $('[data-p]').forEach(el => el.oninput = () => { D.profile[el.dataset.p] = el.value.trim(); touched(); });
   $('[data-rm]').forEach(b => b.onclick = () => { D.schools.splice(+b.dataset.rm, 1); dirty = true; render(); });

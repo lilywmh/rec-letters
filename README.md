@@ -30,7 +30,9 @@ Try the demo: https://lilywmh.github.io/rec-letters/?demo
 - A short welcome card explaining how the page works, shown on first visit
 - Your photo, program, and links, so they remember who you are
 - A checklist of their schools, sorted by deadline, with how to submit each one
-- Your CV, statements and other materials, and what you'd love them to highlight
+- Your CV, statements and other shared materials in the side panel
+- A "For your letter" card under the checklist: your work together, what you'd love
+  them to highlight, and any files meant only for them
 - Light and dark mode and adjustable text size
 
 ## What you get

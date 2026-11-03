@@ -144,7 +144,7 @@ function render() {
     '<p class="muted">Thank you for writing my recommendation letters. Updated ' + fmt(P.updated) + '.</p>' +
     (P.note ? '<div class="callout"><span>\ud83d\udc8c</span><p>' + esc(P.note) + '</p></div>' : '') + '</section>';
   let h = '';
-  const mats = P.materials || [], pts = P.points || [], ctx = P.context || [];
+  const mats = P.materials || [], own = P.own || [], pts = P.points || [], ctx = P.context || [];
   h += '<div class="cols"><aside class="side">';
   const item = (icon, html) => '<li><span class="ic">' + ICON[icon] + '</span><span>' + html + '</span></li>';
   const link = (href, text) => '<a href="' + esc(href) + '" target="_blank" rel="noopener">' + esc(text) + '</a>';
@@ -160,10 +160,6 @@ function render() {
     '<ul class="files">' + mats.map(m => m.url
       ? '<li><a href="' + esc(m.url) + '" target="_blank" rel="noopener">📄 ' + esc(m.label) + (m.updated ? '<span class="d">' + fmt(m.updated) + '</span>' : '') + '</a></li>'
       : '<li><span class="off">📄 ' + esc(m.label) + '<span class="d">coming soon</span></span></li>').join('') + '</ul>');
-  h += sec('highlights', '✨', 'What to highlight', pts.length ? pts.length : '',
-    pts.length ? '<p class="muted" style="margin:0 0 8px">If it fits your letter, I’d love you to speak to:</p><ul>' + pts.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>' : '<p class="muted" style="margin:0">Coming soon.</p>');
-  h += sec('together', '🎓', 'Our work together', ctx.length ? ctx.length : '',
-    ctx.length ? '<ul>' + ctx.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>' : '<p class="muted" style="margin:0">Coming soon.</p>');
   h += sec('submit', '📮', 'How to submit', '',
     '<div class="subs">' + mine.map(s => {
       const m = s.method || 'portal';
@@ -190,7 +186,15 @@ function render() {
       '<span><span class="name">' + esc(s.program) + '</span><span class="sub">' + sub + '</span></span>' +
       '<span class="due"><span>' + (s.due ? fmt(s.due) : 'TBD') + (s.time && !isDone ? ', ' + esc(s.time) : '') + '</span>' + (!isDone && d != null && d >= 0 && d <= 10 ? '<span class="tag orange">' + (d === 0 ? 'today' : d + ' days') + '</span>' : '') + '</span></li>';
   });
-  h += '</ul><div class="toast" role="status">' + esc(toast) + '</div></section>' +
+  h += '</ul><div class="toast" role="status">' + esc(toast) + '</div></section>';
+  const fileLi = m => m.url
+    ? '<li><a href="' + esc(m.url) + '" target="_blank" rel="noopener">📄 ' + esc(m.label) + (m.updated ? '<span class="d">' + fmt(m.updated) + '</span>' : '') + '</a></li>'
+    : '<li><span class="off">📄 ' + esc(m.label) + '<span class="d">coming soon</span></span></li>';
+  if (ctx.length || pts.length || own.length) h += '<section class="letter"><h2>For your letter</h2><div class="letter-grid">' +
+    (ctx.length ? '<div><h3><span aria-hidden="true">🎓</span> Our work together</h3><ul>' + ctx.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul></div>' : '') +
+    (pts.length ? '<div><h3><span aria-hidden="true">✨</span> What I’d love you to highlight</h3><p class="muted">If it fits your letter, I’d love you to speak to:</p><ul>' + pts.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul></div>' : '') +
+    '</div>' + (own.length ? '<div class="letter-files"><h3><span aria-hidden="true">📎</span> Just for you</h3><ul class="files">' + own.map(fileLi).join('') + '</ul></div>' : '') + '</section>';
+  h +=
     '<a class="ask" href="mailto:' + esc(mail) + '"><span class="ask-i">' + ICON.mail + '</span><span><b>Got a question?</b><span class="muted"> Send me an email at ' + esc(mail) + '</span></span><span class="ask-go" aria-hidden="true">\u2192</span></a>' +
     '</div></div>';
   app.innerHTML = h;
@@ -207,7 +211,7 @@ function showWelcome() {
     '<h2 id="w-title">' + (P.salutation ? 'Hi ' + esc(P.salutation) + ',' : 'Hi there,') + '</h2>' +
     '<p>Thank you so much for writing for me. I made this page so everything you need is in one place, and you never have to dig through old emails.</p>' +
     '<ol>' +
-      '<li><span class="wi">📎</span><span><b>Everything you need is in the side panel</b><span class="ws">My CV and statements, what I’d love you to highlight, and how each school takes letters.</span></span></li>' +
+      '<li><span class="wi">📎</span><span><b>Everything you need is on this page</b><span class="ws">My CV, statements and how each school takes letters are in the side panel. Notes for your letter are under the checklist.</span></span></li>' +
       '<li><span class="wi">☑️</span><span><b>Tick a school when you submit</b><span class="ws">I’ll see it right away, so there’s no need to email me each time.</span></span></li>' +
       '<li><span class="wi">📬</span><span><b>Invitations come from each school</b><span class="ws">If one is missing or a link has expired, send me an email and I’ll resend it.</span></span></li>' +
     '</ol>' +
