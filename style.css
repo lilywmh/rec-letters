@@ -210,8 +210,8 @@ dialog.welcome::backdrop { background: rgba(15,15,15,.45); }
 .demo-banner b { color: var(--text); font-weight: 600; }
 .demo-banner a { color: var(--text); white-space: nowrap; }
 
-/* Notes for this recommender, under the checklist */
-.letter { margin-top: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); padding: 18px 20px; display: grid; gap: 16px; }
+/* Notes for this recommender, above the checklist */
+.letter { margin-bottom: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); padding: 18px 20px; display: grid; gap: 16px; }
 .letter h2 { font-size: 20px; }
 .letter h3 { font-size: 15px; font-weight: 600; margin: 0 0 8px; }
 .letter .muted { margin: 0 0 8px; font-size: 14px; }

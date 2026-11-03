@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Recommendation Letters</title>
-<link rel="stylesheet" href="style.css?v=9">
-<script src="prefs.js?v=9"></script>
+<link rel="stylesheet" href="style.css?v=10">
+<script src="prefs.js?v=10"></script>
 </head>
 <body>
 <header class="topbar gutter"><div class="in"><div class="brand"><span class="em">✉️</span><span id="brand">Recommendation letters</span></div><div id="tools"></div></div></header>
 <main class="shell gutter" id="app"><p class="muted">Loading…</p></main>
 <dialog class="welcome" id="welcome" aria-labelledby="w-title"></dialog>
 <script type="module">
-import { SITE } from './site.config.js?v=9';
+import { SITE } from './site.config.js?v=10';
 // Firebase is loaded only for a real recommender link (see below), so ?demo works without it.
 const FB = 'https://www.gstatic.com/firebasejs/10.12.2/';
 
@@ -63,7 +63,7 @@ else if (!token) {
 
 async function startReal() {
   const [{ firebaseConfig }, { initializeApp }, { getFirestore, doc, onSnapshot, updateDoc, serverTimestamp }] = await Promise.all([
-    import('./firebase-config.js?v=9'), import(FB + 'firebase-app.js'), import(FB + 'firebase-firestore.js')
+    import('./firebase-config.js?v=10'), import(FB + 'firebase-app.js'), import(FB + 'firebase-firestore.js')
   ]).catch(() => { app.innerHTML = '<div class="center"><h1>Can’t load right now</h1><p>Please refresh in a minute.</p></div>'; return [{}, {}, {}]; });
   if (!initializeApp) return;
   const db = getFirestore(initializeApp(firebaseConfig));
@@ -171,8 +171,15 @@ function render() {
   const mail = pf.email || SITE.profile.email;
   h += '</aside>';
 
+  const fileLi = m => m.url
+    ? '<li><a href="' + esc(m.url) + '" target="_blank" rel="noopener">📄 ' + esc(m.label) + (m.updated ? '<span class="d">' + fmt(m.updated) + '</span>' : '') + '</a></li>'
+    : '<li><span class="off">📄 ' + esc(m.label) + '<span class="d">coming soon</span></span></li>';
+  const letter = (ctx.length || pts.length || own.length) ? '<section class="letter"><h2>For your letter</h2><div class="letter-grid">' +
+    (ctx.length ? '<div><h3><span aria-hidden="true">🎓</span> Our work together</h3><ul>' + ctx.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul></div>' : '') +
+    (pts.length ? '<div><h3><span aria-hidden="true">✨</span> What I’d love you to highlight</h3><p class="muted">If it fits your letter, I’d love you to speak to:</p><ul>' + pts.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul></div>' : '') +
+    '</div>' + (own.length ? '<div class="letter-files"><h3><span aria-hidden="true">📎</span> Just for you</h3><ul class="files">' + own.map(fileLi).join('') + '</ul></div>' : '') + '</section>' : '';
   const pct = mine.length ? Math.round(done.length / mine.length * 100) : 0;
-  h += '<div class="right">' + hero + '<section class="main"><div class="main-head"><div class="row"><h2>Checklist</h2><span class="muted">' + done.length + ' of ' + plural(mine.length, 'letter') + ' submitted</span></div>' +
+  h += '<div class="right">' + hero + letter + '<section class="main"><div class="main-head"><div class="row"><h2>Checklist</h2><span class="muted">' + done.length + ' of ' + plural(mine.length, 'letter') + ' submitted</span></div>' +
     '<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="' + mine.length + '" aria-valuenow="' + done.length + '"><span style="width:' + pct + '%"></span></div>' +
     (next ? '<p class="muted" style="margin:0">Next due: <b style="color:var(--text)">' + esc(next.program) + '</b>, ' + fmt(next.due) + (dl != null && dl >= 0 ? ' (' + (dl === 0 ? 'today' : dl === 1 ? 'tomorrow' : dl + ' days') + ')' : '') + '. Tick a school when you’ve submitted.</p>' : '<p class="muted" style="margin:0">All letters are in. Thank you so much!</p>') +
     '</div><ul class="todo">';
@@ -187,13 +194,6 @@ function render() {
       '<span class="due"><span>' + (s.due ? fmt(s.due) : 'TBD') + (s.time && !isDone ? ', ' + esc(s.time) : '') + '</span>' + (!isDone && d != null && d >= 0 && d <= 10 ? '<span class="tag orange">' + (d === 0 ? 'today' : d + ' days') + '</span>' : '') + '</span></li>';
   });
   h += '</ul><div class="toast" role="status">' + esc(toast) + '</div></section>';
-  const fileLi = m => m.url
-    ? '<li><a href="' + esc(m.url) + '" target="_blank" rel="noopener">📄 ' + esc(m.label) + (m.updated ? '<span class="d">' + fmt(m.updated) + '</span>' : '') + '</a></li>'
-    : '<li><span class="off">📄 ' + esc(m.label) + '<span class="d">coming soon</span></span></li>';
-  if (ctx.length || pts.length || own.length) h += '<section class="letter"><h2>For your letter</h2><div class="letter-grid">' +
-    (ctx.length ? '<div><h3><span aria-hidden="true">🎓</span> Our work together</h3><ul>' + ctx.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul></div>' : '') +
-    (pts.length ? '<div><h3><span aria-hidden="true">✨</span> What I’d love you to highlight</h3><p class="muted">If it fits your letter, I’d love you to speak to:</p><ul>' + pts.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul></div>' : '') +
-    '</div>' + (own.length ? '<div class="letter-files"><h3><span aria-hidden="true">📎</span> Just for you</h3><ul class="files">' + own.map(fileLi).join('') + '</ul></div>' : '') + '</section>';
   h +=
     '<a class="ask" href="mailto:' + esc(mail) + '"><span class="ask-i">' + ICON.mail + '</span><span><b>Got a question?</b><span class="muted"> Send me an email at ' + esc(mail) + '</span></span><span class="ask-go" aria-hidden="true">\u2192</span></a>' +
     '</div></div>';
@@ -211,7 +211,7 @@ function showWelcome() {
     '<h2 id="w-title">' + (P.salutation ? 'Hi ' + esc(P.salutation) + ',' : 'Hi there,') + '</h2>' +
     '<p>Thank you so much for writing for me. I made this page so everything you need is in one place, and you never have to dig through old emails.</p>' +
     '<ol>' +
-      '<li><span class="wi">📎</span><span><b>Everything you need is on this page</b><span class="ws">My CV, statements and how each school takes letters are in the side panel. Notes for your letter are under the checklist.</span></span></li>' +
+      '<li><span class="wi">📎</span><span><b>Everything you need is on this page</b><span class="ws">My CV, statements and how each school takes letters are in the side panel. Notes for your letter are right at the top.</span></span></li>' +
       '<li><span class="wi">☑️</span><span><b>Tick a school when you submit</b><span class="ws">I’ll see it right away, so there’s no need to email me each time.</span></span></li>' +
       '<li><span class="wi">📬</span><span><b>Invitations come from each school</b><span class="ws">If one is missing or a link has expired, send me an email and I’ll resend it.</span></span></li>' +
     '</ol>' +
