@@ -210,12 +210,21 @@ dialog.welcome::backdrop { background: rgba(15,15,15,.45); }
 .demo-banner b { color: var(--text); font-weight: 600; }
 .demo-banner a { color: var(--text); white-space: nowrap; }
 
-/* Notes for this recommender, above the checklist */
-.letter { margin-bottom: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); padding: 18px 20px; display: grid; gap: 16px; }
-.letter h2 { font-size: 20px; }
-.letter h3 { font-size: 15px; font-weight: 600; margin: 0 0 8px; }
-.letter .muted { margin: 0 0 8px; font-size: 14px; }
-.letter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
-.letter ul { margin: 0; padding-left: 18px; display: grid; gap: 8px; font-size: 14px; line-height: 1.5; }
-.letter ul.files { padding-left: 0; list-style: none; gap: 6px; }
-.letter-files { border-top: 1px solid var(--line); padding-top: 14px; }
+/* Notes for this recommender, above the checklist, as toggles */
+.letter { margin-bottom: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); padding: 16px 20px 8px; }
+.letter h2 { font-size: 20px; margin-bottom: 6px; }
+.lt { border-top: 1px solid var(--line); }
+.lt:first-of-type { border-top: 0; }
+.lt > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 12px 8px; margin: 0 -8px; border-radius: 6px; }
+.lt > summary::-webkit-details-marker { display: none; }
+.lt > summary:hover { background: var(--hover); }
+.lt .si { font-size: 17px; width: 22px; text-align: center; }
+.lt .st { font-weight: 600; flex: 1; }
+.lt .sc { font-size: 12px; color: var(--soft); }
+.lt .chev { color: var(--faint); transition: transform .15s; font-size: 12px; }
+.lt[open] .chev { transform: rotate(90deg); }
+.lt-body { padding: 0 0 14px 32px; font-size: 14px; line-height: 1.5; }
+.lt-body .muted { margin: 0 0 8px; }
+.lt-body ul { margin: 0; padding-left: 18px; display: grid; gap: 8px; }
+.lt-body ul.files { padding-left: 0; list-style: none; gap: 2px; }
+@media (max-width: 560px) { .lt-body { padding-left: 0; } }
