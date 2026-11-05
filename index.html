@@ -176,7 +176,7 @@ function render() {
     : '<li><span class="off">📄 ' + esc(m.label) + '<span class="d">coming soon</span></span></li>';
   const tog = (id, icon, title, count, body) => '<details class="lt" data-sec="' + id + '"' + (openSecs.has(id) ? ' open' : '') + '><summary><span class="si" aria-hidden="true">' + icon + '</span><span class="st">' + title + '</span><span class="sc">' + count + '</span><span class="chev">▶</span></summary><div class="lt-body">' + body + '</div></details>';
   const letter = (ctx.length || pts.length || own.length) ? '<section class="letter"><h2>For your letter</h2>' +
-    (pts.length ? tog('highlights', '✨', 'What I’d love you to highlight', pts.length, '<p class="muted">If it fits your letter, I’d love you to speak to:</p><ul>' + pts.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>') : '') +
+    (pts.length ? tog('highlights', '✨', 'A few things you might mention', pts.length, '<p class="muted">If it fits your letter, I’d love you to speak to:</p><ul>' + pts.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>') : '') +
     (ctx.length ? tog('together', '🎓', 'Our work together', ctx.length, '<ul>' + ctx.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>') : '') +
     (own.length ? tog('own', '📎', 'Just for you', own.length, '<ul class="files">' + own.map(fileLi).join('') + '</ul>') : '') +
     '</section>' : '';
