@@ -112,6 +112,12 @@ h1, h2, h3 { margin: 0; line-height: 1.25; }
 .cb:disabled { cursor: default; }
 .todo .name { font-weight: 500; }
 .todo .sub { display: block; font-size: 13px; color: var(--soft); }
+.stag { display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; padding: 1px 9px; border-radius: 99px; font-size: 12px; font-weight: 600; line-height: 20px; white-space: nowrap; vertical-align: 1px; }
+.stag.inv { background: var(--blue); color: var(--bg); }
+.stag.ok { background: var(--green-bg); color: var(--green); }
+.stag.wait { border: 1px dashed var(--faint); color: var(--soft); padding: 0 8px; font-weight: 500; }
+.todo li.inv { box-shadow: inset 3px 0 0 var(--blue); background: color-mix(in srgb, var(--blue-bg) 55%, transparent); }
+.todo li.inv:hover { background: var(--blue-bg); }
 .todo li.done .name { color: var(--faint); text-decoration: line-through; font-weight: 400; }
 .todo .due { font-size: 14px; color: var(--soft); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; display: grid; justify-items: end; gap: 4px; }
 .toast { min-height: 22px; font-size: 14px; color: var(--green); padding: 0 20px 14px; }
