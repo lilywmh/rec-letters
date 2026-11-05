@@ -144,7 +144,7 @@ function render() {
     '<p class="muted">Thank you for writing my recommendation letters. Updated ' + fmt(P.updated) + '.</p>' +
     (P.note ? '<div class="callout"><span>\ud83d\udc8c</span><p>' + esc(P.note) + '</p></div>' : '') + '</section>';
   let h = '';
-  const mats = P.materials || [], own = P.own || [], pts = P.points || [], ctx = P.context || [];
+  const mats = (P.materials || []).filter(m => m.label), own = P.own || [], pts = P.points || [], ctx = P.context || [];
   h += '<div class="cols"><aside class="side">';
   const item = (icon, html) => '<li><span class="ic">' + ICON[icon] + '</span><span>' + html + '</span></li>';
   const link = (href, text) => '<a href="' + esc(href) + '" target="_blank" rel="noopener">' + esc(text) + '</a>';

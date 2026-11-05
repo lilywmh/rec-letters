@@ -191,9 +191,13 @@ function schoolsTab() {
     '<div><button class="btn" id="add">+ Add a school</button></div>';
 }
 function materialsTab() {
-  return '<p class="muted">Google Drive links set to “Anyone with the link can view.” Change the date when you upload a new version.</p>' + D.materials.map((m, i) =>
-    '<div class="block"><label class="wide">' + esc(m.label) + '<input data-m="' + i + '" data-k="url" placeholder="https://drive.google.com/..." value="' + esc(m.url) + '"></label>' +
-    '<label>Last updated<input type="date" data-m="' + i + '" data-k="updated" value="' + esc(m.updated) + '"></label></div>').join('');
+  const n = D.materials.length;
+  return '<p class="muted">Shared with every professor. Google Drive links set to “Anyone with the link can view.” Leave the link empty to show “coming soon.” Change the date when you upload a new version. Materials for one professor only go under Professors.</p>' + D.materials.map((m, i) =>
+    '<div class="block"><label class="wide">Name<input data-m="' + i + '" data-k="label" placeholder="e.g. PURF report" value="' + esc(m.label) + '"></label>' +
+    '<label class="wide">Link<input data-m="' + i + '" data-k="url" placeholder="https://drive.google.com/..." value="' + esc(m.url) + '"></label>' +
+    '<label>Last updated<input type="date" data-m="' + i + '" data-k="updated" value="' + esc(m.updated) + '"></label>' +
+    '<div class="wide row">' + (i > 0 ? '<button class="link" data-mup="' + i + '">Move up</button>' : '') + (i < n - 1 ? '<button class="link" data-mdown="' + i + '">Move down</button>' : '') + '<button class="link" data-mrm="' + i + '">Remove</button></div></div>').join('') +
+    '<div><button class="btn" id="addm">+ Add a material</button></div>';
 }
 /* "Label | link" -> material; a line with no link shows as coming soon. */
 function toMat(line) {
@@ -245,6 +249,11 @@ function wire() {
   $('[data-cell]').forEach(b => b.onclick = () => { const [rid, sid] = b.dataset.cell.split('|'); cycle(D.recs.find(x => x.id === rid), D.schools.find(x => x.id === sid)); });
   $('[data-s]').forEach(el => el.oninput = el.onchange = () => { D.schools[+el.dataset.s][el.dataset.k] = el.value.trim(); touched(); });
   $('[data-m]').forEach(el => el.oninput = () => { D.materials[+el.dataset.m][el.dataset.k] = el.value.trim(); touched(); });
+  const mv = (i, j) => { const m = D.materials; [m[i], m[j]] = [m[j], m[i]]; dirty = true; render(); };
+  $('[data-mup]').forEach(b => b.onclick = () => mv(+b.dataset.mup, +b.dataset.mup - 1));
+  $('[data-mdown]').forEach(b => b.onclick = () => mv(+b.dataset.mdown, +b.dataset.mdown + 1));
+  $('[data-mrm]').forEach(b => b.onclick = () => { D.materials.splice(+b.dataset.mrm, 1); dirty = true; render(); });
+  const addm = document.getElementById('addm'); if (addm) addm.onclick = () => { D.materials.push({ label: '', url: '', updated: '' }); dirty = true; render(); };
   $('[data-r]').forEach(el => el.oninput = () => { const r = D.recs[+el.dataset.r], k = el.dataset.k; r[k] = k === 'materials' ? lines(el.value).map(toMat) : (k === 'points' || k === 'context') ? lines(el.value) : el.value.trim(); touched(); });
   $('[data-g]').forEach(el => el.oninput = () => { D[el.dataset.g] = el.value.trim(); touched(); });
   $('[data-p]').forEach(el => el.oninput = () => { D.profile[el.dataset.p] = el.value.trim(); touched(); });
