@@ -189,11 +189,11 @@ function render() {
     const st = P.status[s.id] || 'todo', isDone = st === 'submitted', d = daysLeft(s.due);
     const portal = (s.method || 'portal') === 'portal', inv = !isDone && portal && st === 'invited', on = (P.invitedOn || {})[s.id];
     let sub, tag = '';
-    if (isDone) { sub = ''; tag = '<span class="stag ok">✓ Submitted</span>'; }
-    else if (portal && inv) { sub = (on ? 'Sent ' + fmt(on) : 'Sent') + (s.from ? ' · look for an email from “' + esc(s.from) + '”' : ''); tag = '<span class="stag inv">✉ Invitation sent</span>'; }
-    else if (portal) { sub = 'You’ll get an email from the school'; tag = '<span class="stag wait">Invitation coming</span>'; }
+    if (isDone) sub = 'Submitted';
+    else if (portal && inv) { sub = 'Invitation sent' + (on ? ' ' + fmt(on) : '') + (s.from ? ' · from “' + esc(s.from) + '”' : ''); tag = ' <span class="tag blue">Invited</span>'; }
+    else if (portal) sub = 'Invitation email coming soon';
     else sub = esc(s.howto || METHOD[s.method]);
-    h += '<li class="' + (isDone ? 'done' : inv ? 'inv' : '') + '"><button class="cb" role="checkbox" aria-checked="' + isDone + '" aria-label="Submitted: ' + esc(s.program) + '" data-tick="' + s.id + '"' + (busy ? ' disabled' : '') + '>✓</button>' +
+    h += '<li class="' + (isDone ? 'done' : '') + '"><button class="cb" role="checkbox" aria-checked="' + isDone + '" aria-label="Submitted: ' + esc(s.program) + '" data-tick="' + s.id + '"' + (busy ? ' disabled' : '') + '>✓</button>' +
       '<span><span class="name">' + esc(s.program) + '</span>' + tag + '<span class="sub">' + sub + '</span></span>' +
       '<span class="due"><span>' + (s.due ? fmt(s.due) : 'TBD') + (s.time && !isDone ? ', ' + esc(s.time) : '') + '</span>' + (!isDone && d != null && d >= 0 && d <= 10 ? '<span class="tag orange">' + (d === 0 ? 'today' : d + ' days') + '</span>' : '') + '</span></li>';
   });
