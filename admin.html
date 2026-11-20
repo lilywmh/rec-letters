@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Letters Back Office</title>
-<link rel="stylesheet" href="style.css?v=15">
+<link rel="stylesheet" href="style.css?v=16">
 <script src="prefs.js?v=11"></script>
 </head>
 <body>
@@ -129,8 +129,8 @@ async function publishAll() {
   for (const tk of Object.keys(pages)) if (!keep.has(tk) && (M.recs || []).some(r => r.token === tk && r.role === 'reviewer')) await F_del(doc(db, 'pages', tk));
   M = clone(D);
 }
-async function toggleApplied(sid) {
-  const v = (D.schools.find(x => x.id === sid) || {}).applied ? '' : iso(today());
+async function toggleApplied(sid, val) {
+  const v = val !== undefined ? val : ((D.schools.find(x => x.id === sid) || {}).applied ? '' : iso(today()));
   for (const X of [D, M]) { const s = ((X && X.schools) || []).find(x => x.id === sid); if (s) s.applied = v; }
   if (DEMO) { msg = 'Demo: changes stay in this tab only.'; render(); return; }
   try { await setDoc(doc(db, 'admin', 'master'), { ...M }); msg = ''; }
@@ -183,10 +183,10 @@ function profileTab() {
 }
 function statusTab() {
   const schools = D.schools.slice().sort(byDue);
-  return '<p class="muted">Click “My application” to mark the day you applied. For letters, ✓ marks one submitted, and clicking a tag moves it along: Not invited → Invited → Submitted → Not needed (not writing for that school, hidden from their page). Everything here saves instantly.</p>' +
+  return '<p class="muted">Click “My application” to mark a school as applied; click the date to change it. For letters, ✓ marks one submitted, and clicking a tag moves it along: Not invited → Invited → Submitted → Not needed (not writing for that school, hidden from their page). Everything here saves instantly.</p>' +
     '<div class="scroll"><table><thead><tr><th>Program</th><th>Due</th><th>My application</th>' + LET().map(r => '<th>' + esc(r.name) + '</th>').join('') + '</tr></thead><tbody>' +
     schools.map(s => { const d = daysLeft(s.due); return '<tr><td>' + esc(s.program) + '</td><td class="d">' + (s.due ? fmt(s.due) : 'TBD') + (d != null && d >= 0 && d <= 10 ? ' <span class="tag orange">' + d + 'd</span>' : '') + '</td>' +
-      '<td><button class="cell" data-ap="' + s.id + '">' + (s.applied ? '<span class="tag green">✓ Applied ' + fmt(s.applied) + '</span>' : '<span class="tag grey">Not yet</span>') + '</button></td>' +
+      '<td>' + (s.applied ? '<span class="cellwrap"><span class="apd"><span aria-hidden="true">✓</span><input type="date" data-apd="' + s.id + '" value="' + esc(s.applied) + '" aria-label="Date you applied to ' + esc(s.program) + '"></span><button class="mk" data-ap="' + s.id + '" title="Unmark" aria-label="Unmark ' + esc(s.program) + ' as applied">×</button></span>' : '<button class="cell" data-ap="' + s.id + '"><span class="tag grey">Not yet</span></button>') + '</td>' +
       LET().map(r => { const v = stOf(r, s); return '<td><span class="cellwrap"><button class="cell" data-cell="' + r.id + '|' + s.id + '"><span class="tag ' + LABEL[v][0] + '">' + LABEL[v][1] + '</span></button>' + (v === 'todo' || v === 'invited' ? '<button class="mk" data-mk="' + r.id + '|' + s.id + '" title="Mark submitted" aria-label="Mark ' + esc(r.name) + '’s letter to ' + esc(s.program) + ' as submitted">✓</button>' : '') + '</span></td>'; }).join('') + '</tr>'; }).join('') +
     '</tbody></table></div>';
 }
@@ -273,6 +273,7 @@ function wire() {
   $('[data-cell]').forEach(b => b.onclick = () => { const [rid, sid] = b.dataset.cell.split('|'); cycle(D.recs.find(x => x.id === rid), D.schools.find(x => x.id === sid)); });
   $('[data-mk]').forEach(b => b.onclick = () => { const [rid, sid] = b.dataset.mk.split('|'); cycle(D.recs.find(x => x.id === rid), D.schools.find(x => x.id === sid), 'submitted'); });
   $('[data-ap]').forEach(b => b.onclick = () => toggleApplied(b.dataset.ap));
+  $('[data-apd]').forEach(el => el.onchange = () => { if (el.value) toggleApplied(el.dataset.apd, el.value); });
   $('[data-s]').forEach(el => el.oninput = el.onchange = () => { D.schools[+el.dataset.s][el.dataset.k] = el.value.trim(); touched(); });
   $('[data-m]').forEach(el => el.oninput = () => { D.materials[+el.dataset.m][el.dataset.k] = el.value.trim(); touched(); });
   const mv = (i, j) => { const m = D.materials; [m[i], m[j]] = [m[j], m[i]]; dirty = true; render(); };
