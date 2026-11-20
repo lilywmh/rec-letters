@@ -234,3 +234,7 @@ dialog.welcome::backdrop { background: rgba(15,15,15,.45); }
 .ws-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 2px 16px; }
 .ws-list label { display: flex; flex-direction: row; align-items: center; gap: 8px; font-size: 14px; color: var(--text); padding: 3px 0; cursor: pointer; }
 .ws-list input { width: 15px; height: 15px; margin: 0; flex-shrink: 0; accent-color: var(--blue); }
+.cellwrap { display: inline-flex; align-items: center; gap: 4px; }
+.mk { border: 1px solid var(--line); background: var(--bg); color: var(--soft); border-radius: 4px; width: 22px; height: 22px; padding: 0; font-size: 12px; line-height: 1; cursor: pointer; opacity: .55; }
+tr:hover .mk, .mk:focus-visible { opacity: 1; }
+.mk:hover { color: var(--green); border-color: var(--green); background: var(--green-bg); }

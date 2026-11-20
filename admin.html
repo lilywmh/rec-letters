@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Letters Back Office</title>
-<link rel="stylesheet" href="style.css?v=14">
+<link rel="stylesheet" href="style.css?v=15">
 <script src="prefs.js?v=11"></script>
 </head>
 <body>
@@ -116,7 +116,7 @@ function stOf(r, s) {
   const p = pages[r.token]; return (p && p.status && p.status[s.id]) || 'todo';
 }
 function pageFor(r, prev) {
-  const schools = D.schools.filter(s => !(r.skip || []).includes(s.id));
+  const schools = D.schools.filter(s => !(r.skip || []).includes(s.id)).map(({ applied, ...s }) => s);
   const status = {}, invitedOn = {};
   if (r.role !== 'reviewer') schools.forEach(s => { status[s.id] = (prev && prev.status && prev.status[s.id]) || 'todo'; invitedOn[s.id] = (prev && prev.invitedOn && prev.invitedOn[s.id]) || ''; });
   return { role: r.role || 'recommender', student: D.student, profile: D.profile || defaultProfile(), note: D.note, salutation: r.salutation, materials: D.materials, own: r.materials || [], context: r.context || [], points: r.points || [], schools, status, invitedOn, updated: iso(today()) };
@@ -129,8 +129,16 @@ async function publishAll() {
   for (const tk of Object.keys(pages)) if (!keep.has(tk) && (M.recs || []).some(r => r.token === tk && r.role === 'reviewer')) await F_del(doc(db, 'pages', tk));
   M = clone(D);
 }
-async function cycle(r, s) {
-  const cur = stOf(r, s), nxt = CYCLE[(CYCLE.indexOf(cur) + 1) % CYCLE.length];
+async function toggleApplied(sid) {
+  const v = (D.schools.find(x => x.id === sid) || {}).applied ? '' : iso(today());
+  for (const X of [D, M]) { const s = ((X && X.schools) || []).find(x => x.id === sid); if (s) s.applied = v; }
+  if (DEMO) { msg = 'Demo: changes stay in this tab only.'; render(); return; }
+  try { await setDoc(doc(db, 'admin', 'master'), { ...M }); msg = ''; }
+  catch (e) { msg = 'That change didn’t save: ' + e.message; }
+  render();
+}
+async function cycle(r, s, to) {
+  const cur = stOf(r, s), nxt = to || CYCLE[(CYCLE.indexOf(cur) + 1) % CYCLE.length];
   if (DEMO) {
     const rec = D.recs.find(x => x.id === r.id), skip = new Set(rec.skip || []);
     nxt === 'na' ? skip.add(s.id) : skip.delete(s.id); rec.skip = [...skip];
@@ -175,10 +183,11 @@ function profileTab() {
 }
 function statusTab() {
   const schools = D.schools.slice().sort(byDue);
-  return '<p class="muted">Click a tag to move it along: Not invited → Invited → Submitted → Not needed. “Not needed” means that professor isn’t writing for that school, and it disappears from their page. You can also set this under Professors → Writes for. Saves instantly; professors’ own check-offs appear here live.</p>' +
-    '<div class="scroll"><table><thead><tr><th>Program</th><th>Due</th>' + LET().map(r => '<th>' + esc(r.name) + '</th>').join('') + '</tr></thead><tbody>' +
+  return '<p class="muted">Click “My application” to mark the day you applied. For letters, ✓ marks one submitted, and clicking a tag moves it along: Not invited → Invited → Submitted → Not needed (not writing for that school, hidden from their page). Everything here saves instantly.</p>' +
+    '<div class="scroll"><table><thead><tr><th>Program</th><th>Due</th><th>My application</th>' + LET().map(r => '<th>' + esc(r.name) + '</th>').join('') + '</tr></thead><tbody>' +
     schools.map(s => { const d = daysLeft(s.due); return '<tr><td>' + esc(s.program) + '</td><td class="d">' + (s.due ? fmt(s.due) : 'TBD') + (d != null && d >= 0 && d <= 10 ? ' <span class="tag orange">' + d + 'd</span>' : '') + '</td>' +
-      LET().map(r => { const v = stOf(r, s); return '<td><button class="cell" data-cell="' + r.id + '|' + s.id + '"><span class="tag ' + LABEL[v][0] + '">' + LABEL[v][1] + '</span></button></td>'; }).join('') + '</tr>'; }).join('') +
+      '<td><button class="cell" data-ap="' + s.id + '">' + (s.applied ? '<span class="tag green">✓ Applied ' + fmt(s.applied) + '</span>' : '<span class="tag grey">Not yet</span>') + '</button></td>' +
+      LET().map(r => { const v = stOf(r, s); return '<td><span class="cellwrap"><button class="cell" data-cell="' + r.id + '|' + s.id + '"><span class="tag ' + LABEL[v][0] + '">' + LABEL[v][1] + '</span></button>' + (v === 'todo' || v === 'invited' ? '<button class="mk" data-mk="' + r.id + '|' + s.id + '" title="Mark submitted" aria-label="Mark ' + esc(r.name) + '’s letter to ' + esc(s.program) + ' as submitted">✓</button>' : '') + '</span></td>'; }).join('') + '</tr>'; }).join('') +
     '</tbody></table></div>';
 }
 function schoolsTab() {
@@ -262,6 +271,8 @@ function wire() {
   document.getElementById('out').onclick = () => { if (DEMO) location.href = './?demo'; else signOut(auth); };
   $('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; render(); });
   $('[data-cell]').forEach(b => b.onclick = () => { const [rid, sid] = b.dataset.cell.split('|'); cycle(D.recs.find(x => x.id === rid), D.schools.find(x => x.id === sid)); });
+  $('[data-mk]').forEach(b => b.onclick = () => { const [rid, sid] = b.dataset.mk.split('|'); cycle(D.recs.find(x => x.id === rid), D.schools.find(x => x.id === sid), 'submitted'); });
+  $('[data-ap]').forEach(b => b.onclick = () => toggleApplied(b.dataset.ap));
   $('[data-s]').forEach(el => el.oninput = el.onchange = () => { D.schools[+el.dataset.s][el.dataset.k] = el.value.trim(); touched(); });
   $('[data-m]').forEach(el => el.oninput = () => { D.materials[+el.dataset.m][el.dataset.k] = el.value.trim(); touched(); });
   const mv = (i, j) => { const m = D.materials; [m[i], m[j]] = [m[j], m[i]]; dirty = true; render(); };
