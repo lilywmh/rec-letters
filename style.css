@@ -229,3 +229,8 @@ dialog.welcome::backdrop { background: rgba(15,15,15,.45); }
 .lt-body ul.files { padding-left: 0; list-style: none; gap: 2px; }
 @media (max-width: 560px) { .lt-body { padding-left: 0; } }
 .todo.plain li { grid-template-columns: 1fr auto; cursor: default; }
+.ws-h { font-size: 12px; color: var(--soft); margin-bottom: 6px; }
+.ws-h span { color: var(--faint); margin-left: 4px; }
+.ws-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 2px 16px; }
+.ws-list label { display: flex; flex-direction: row; align-items: center; gap: 8px; font-size: 14px; color: var(--text); padding: 3px 0; cursor: pointer; }
+.ws-list input { width: 15px; height: 15px; margin: 0; flex-shrink: 0; accent-color: var(--blue); }

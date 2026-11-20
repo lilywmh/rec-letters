@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Letters Back Office</title>
-<link rel="stylesheet" href="style.css?v=13">
+<link rel="stylesheet" href="style.css?v=14">
 <script src="prefs.js?v=11"></script>
 </head>
 <body>
@@ -43,7 +43,7 @@ const rand = n => Array.from(crypto.getRandomValues(new Uint8Array(n)), b => b.t
 const base = location.href.replace(/admin\.html.*$/, '').replace(/#.*$/, '');
 const LET = () => D.recs.filter(r => r.role !== 'reviewer');
 const linkOf = r => DEMO ? base.replace(/\?.*$/, '') + '?demo' : base + '#' + r.token;
-const LABEL = { todo: ['grey', 'Not invited'], invited: ['blue', 'Invited'], submitted: ['green', 'Submitted'], na: ['grey', '— Not applying'] };
+const LABEL = { todo: ['grey', 'Not invited'], invited: ['blue', 'Invited'], submitted: ['green', 'Submitted'], na: ['grey', '— Not needed'] };
 const CYCLE = ['todo', 'invited', 'submitted', 'na'];
 const METHODS = [['portal', 'Portal invitation'], ['email', 'Email'], ['mail', 'Mail'], ['link', 'Upload link']];
 
@@ -175,7 +175,7 @@ function profileTab() {
 }
 function statusTab() {
   const schools = D.schools.slice().sort(byDue);
-  return '<p class="muted">Click a tag to move it along: Not invited → Invited → Submitted → Not applying. Saves instantly; professors’ own check-offs appear here live.</p>' +
+  return '<p class="muted">Click a tag to move it along: Not invited → Invited → Submitted → Not needed. “Not needed” means that professor isn’t writing for that school, and it disappears from their page. You can also set this under Professors → Writes for. Saves instantly; professors’ own check-offs appear here live.</p>' +
     '<div class="scroll"><table><thead><tr><th>Program</th><th>Due</th>' + LET().map(r => '<th>' + esc(r.name) + '</th>').join('') + '</tr></thead><tbody>' +
     schools.map(s => { const d = daysLeft(s.due); return '<tr><td>' + esc(s.program) + '</td><td class="d">' + (s.due ? fmt(s.due) : 'TBD') + (d != null && d >= 0 && d <= 10 ? ' <span class="tag orange">' + d + 'd</span>' : '') + '</td>' +
       LET().map(r => { const v = stOf(r, s); return '<td><button class="cell" data-cell="' + r.id + '|' + s.id + '"><span class="tag ' + LABEL[v][0] + '">' + LABEL[v][1] + '</span></button></td>'; }).join('') + '</tr>'; }).join('') +
@@ -222,6 +222,8 @@ function peopleTab() {
     : '<div class="block">' + head(r) +
       '<label>How you address them<input data-r="' + i + '" data-k="salutation" value="' + esc(r.salutation) + '"></label>' +
       '<label>Column name<input data-r="' + i + '" data-k="name" value="' + esc(r.name) + '"></label>' +
+      '<div class="wide ws"><div class="ws-h">Writes for <span>Untick a school they don’t need to submit to. It won’t appear on their page.</span></div><div class="ws-list">' +
+        D.schools.slice().sort(byDue).map(s => '<label><input type="checkbox" data-ws="' + i + '|' + s.id + '"' + ((r.skip || []).includes(s.id) ? '' : ' checked') + '><span>' + esc(s.program) + '</span></label>').join('') + '</div></div>' +
       ta(i, 'context', 'Our work together: course, semester, grade, projects (one per line)', '', (r.context || []).join('\n')) +
       ta(i, 'points', 'What to highlight (2 or 3 lines)', 'e.g. Led the Kin project team and kept four people on schedule', (r.points || []).join('\n')) +
       ta(i, 'materials', 'Materials just for them, shown in their letter notes (one per line: Label | link)', 'e.g. Final project report | https://drive.google.com/...', matsVal(r)) + '</div>').join('') +
@@ -272,6 +274,7 @@ function wire() {
   $('[data-p]').forEach(el => el.oninput = () => { D.profile[el.dataset.p] = el.value.trim(); touched(); });
   $('[data-rm]').forEach(b => b.onclick = () => { D.schools.splice(+b.dataset.rm, 1); dirty = true; render(); });
   $('[data-copy]').forEach(b => b.onclick = () => copy(b.dataset.copy, b));
+  $('[data-ws]').forEach(el => el.onchange = () => { const [i, sid] = el.dataset.ws.split('|'), r = D.recs[+i], sk = new Set(r.skip || []); el.checked ? sk.delete(sid) : sk.add(sid); r.skip = [...sk]; dirty = true; render(); });
   const addrv = document.getElementById('addrv');
   if (addrv) addrv.onclick = () => { const id = 'rv' + rand(3); D.recs.push({ id, role: 'reviewer', name: '', salutation: '', token: id + '-' + rand(9), context: [], points: [], materials: [], skip: [] }); dirty = true; render(); };
   $('[data-rvrm]').forEach(b => b.onclick = () => { const r = D.recs[+b.dataset.rvrm]; if (r && r.role === 'reviewer') { D.recs.splice(+b.dataset.rvrm, 1); dirty = true; render(); } });
