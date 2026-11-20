@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Letters Back Office</title>
-<link rel="stylesheet" href="style.css?v=12">
+<link rel="stylesheet" href="style.css?v=13">
 <script src="prefs.js?v=11"></script>
 </head>
 <body>
@@ -17,13 +17,13 @@ import { SITE } from './site.config.js?v=11';
 // ?demo shows the back office with example data from demo.json and never loads Firebase.
 const DEMO = new URLSearchParams(location.search).has('demo');
 const app = document.getElementById('app');
-let ADMIN_EMAILS, db, auth, doc, getDoc, setDoc, updateDoc, collection, onSnapshot, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut;
+let F_del, ADMIN_EMAILS, db, auth, doc, getDoc, setDoc, updateDoc, collection, onSnapshot, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut;
 if (!DEMO) {
   const FB = 'https://www.gstatic.com/firebasejs/10.12.2/';
   const [cfg, A, F, U] = await Promise.all([import('./firebase-config.js?v=11'), import(FB + 'firebase-app.js'), import(FB + 'firebase-firestore.js'), import(FB + 'firebase-auth.js')])
     .catch(e => { app.innerHTML = '<div class="center"><h1>Can’t load right now</h1><p>Please refresh in a minute.</p></div>'; throw e; });
   ADMIN_EMAILS = cfg.ADMIN_EMAILS;
-  ({ doc, getDoc, setDoc, updateDoc, collection, onSnapshot } = F);
+  ({ doc, getDoc, setDoc, updateDoc, collection, onSnapshot } = F); F_del = F.deleteDoc;
   ({ GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } = U);
   const fb = A.initializeApp(cfg.firebaseConfig);
   db = F.getFirestore(fb); auth = U.getAuth(fb);
@@ -41,6 +41,7 @@ const byDue = (a, b) => (!a.due) - (!b.due) || (a.due < b.due ? -1 : a.due > b.d
 const lines = t => String(t || '').split('\n').map(x => x.trim()).filter(Boolean);
 const rand = n => Array.from(crypto.getRandomValues(new Uint8Array(n)), b => b.toString(16).padStart(2, '0')).join('');
 const base = location.href.replace(/admin\.html.*$/, '').replace(/#.*$/, '');
+const LET = () => D.recs.filter(r => r.role !== 'reviewer');
 const linkOf = r => DEMO ? base.replace(/\?.*$/, '') + '?demo' : base + '#' + r.token;
 const LABEL = { todo: ['grey', 'Not invited'], invited: ['blue', 'Invited'], submitted: ['green', 'Submitted'], na: ['grey', '— Not applying'] };
 const CYCLE = ['todo', 'invited', 'submitted', 'na'];
@@ -117,13 +118,15 @@ function stOf(r, s) {
 function pageFor(r, prev) {
   const schools = D.schools.filter(s => !(r.skip || []).includes(s.id));
   const status = {}, invitedOn = {};
-  schools.forEach(s => { status[s.id] = (prev && prev.status && prev.status[s.id]) || 'todo'; invitedOn[s.id] = (prev && prev.invitedOn && prev.invitedOn[s.id]) || ''; });
-  return { student: D.student, profile: D.profile || defaultProfile(), note: D.note, salutation: r.salutation, materials: D.materials, own: r.materials || [], context: r.context || [], points: r.points || [], schools, status, invitedOn, updated: iso(today()) };
+  if (r.role !== 'reviewer') schools.forEach(s => { status[s.id] = (prev && prev.status && prev.status[s.id]) || 'todo'; invitedOn[s.id] = (prev && prev.invitedOn && prev.invitedOn[s.id]) || ''; });
+  return { role: r.role || 'recommender', student: D.student, profile: D.profile || defaultProfile(), note: D.note, salutation: r.salutation, materials: D.materials, own: r.materials || [], context: r.context || [], points: r.points || [], schools, status, invitedOn, updated: iso(today()) };
 }
 async function publishAll() {
   D.updated = iso(today());
   await setDoc(doc(db, 'admin', 'master'), D);
   for (const r of D.recs) await setDoc(doc(db, 'pages', r.token), pageFor(r, pages[r.token]));
+  const keep = new Set(D.recs.map(r => r.token));
+  for (const tk of Object.keys(pages)) if (!keep.has(tk) && (M.recs || []).some(r => r.token === tk && r.role === 'reviewer')) await F_del(doc(db, 'pages', tk));
   M = clone(D);
 }
 async function cycle(r, s) {
@@ -173,9 +176,9 @@ function profileTab() {
 function statusTab() {
   const schools = D.schools.slice().sort(byDue);
   return '<p class="muted">Click a tag to move it along: Not invited → Invited → Submitted → Not applying. Saves instantly; professors’ own check-offs appear here live.</p>' +
-    '<div class="scroll"><table><thead><tr><th>Program</th><th>Due</th>' + D.recs.map(r => '<th>' + esc(r.name) + '</th>').join('') + '</tr></thead><tbody>' +
+    '<div class="scroll"><table><thead><tr><th>Program</th><th>Due</th>' + LET().map(r => '<th>' + esc(r.name) + '</th>').join('') + '</tr></thead><tbody>' +
     schools.map(s => { const d = daysLeft(s.due); return '<tr><td>' + esc(s.program) + '</td><td class="d">' + (s.due ? fmt(s.due) : 'TBD') + (d != null && d >= 0 && d <= 10 ? ' <span class="tag orange">' + d + 'd</span>' : '') + '</td>' +
-      D.recs.map(r => { const v = stOf(r, s); return '<td><button class="cell" data-cell="' + r.id + '|' + s.id + '"><span class="tag ' + LABEL[v][0] + '">' + LABEL[v][1] + '</span></button></td>'; }).join('') + '</tr>'; }).join('') +
+      LET().map(r => { const v = stOf(r, s); return '<td><button class="cell" data-cell="' + r.id + '|' + s.id + '"><span class="tag ' + LABEL[v][0] + '">' + LABEL[v][1] + '</span></button></td>'; }).join('') + '</tr>'; }).join('') +
     '</tbody></table></div>';
 }
 function schoolsTab() {
@@ -205,15 +208,25 @@ function toMat(line) {
   return i < 0 ? { label: line.trim(), url: '', updated: '' } : { label: line.slice(0, i).trim(), url: line.slice(i + 1).trim(), updated: '' };
 }
 function peopleTab() {
-  return '<p class="muted">Each professor’s link opens only their own page. For highlights, name 2 or 3 specific strengths plainly. Don’t be modest.</p>' + D.recs.map((r, i) =>
-    '<div class="block"><h3 class="wide">' + esc(r.salutation || r.name) + '</h3>' +
-    '<div class="wide row"><span class="mono">' + esc(linkOf(r)) + '</span><button class="btn" data-copy="' + esc(linkOf(r)) + '">Copy link</button><a class="btn" style="text-decoration:none" href="' + esc(linkOf(r)) + '" target="_blank" rel="noopener">Open their page</a></div>' +
-    '<label>How you address them<input data-r="' + i + '" data-k="salutation" value="' + esc(r.salutation) + '"></label>' +
-    '<label>Column name<input data-r="' + i + '" data-k="name" value="' + esc(r.name) + '"></label>' +
-    '<label class="wide">Our work together: course, semester, grade, projects (one per line)<textarea data-r="' + i + '" data-k="context">' + esc((r.context || []).join('\n')) + '</textarea></label>' +
-    '<label class="wide">What to highlight (2 or 3 lines)<textarea data-r="' + i + '" data-k="points" placeholder="e.g. Led the Kin project team and kept four people on schedule">' + esc((r.points || []).join('\n')) + '</textarea></label>' +
-    '<label class="wide">Materials just for them, shown in their letter notes (one per line: Label | link)<textarea data-r="' + i + '" data-k="materials" placeholder="e.g. Final project report | https://drive.google.com/...">' + esc((r.materials || []).map(m => m.label + (m.url ? ' | ' + m.url : '')).join('\n')) + '</textarea></label></div>').join('') +
-    '<div class="block"><h3 class="wide">Shared</h3><label class="wide">Note at the top of every page<textarea data-g="note">' + esc(D.note) + '</textarea></label></div>';
+  const ta = (i, k, label, ph, val) => '<label class="wide">' + label + '<textarea data-r="' + i + '" data-k="' + k + '"' + (ph ? ' placeholder="' + ph + '"' : '') + '>' + esc(val) + '</textarea></label>';
+  const matsVal = r => (r.materials || []).map(m => m.label + (m.url ? ' | ' + m.url : '')).join('\n');
+  const head = r => '<h3 class="wide">' + esc(r.salutation || r.name || 'New reviewer') + (r.role === 'reviewer' ? ' <span class="tag grey">Materials only</span>' : '') + '</h3>' +
+    '<div class="wide row"><span class="mono">' + esc(linkOf(r)) + '</span><button class="btn" data-copy="' + esc(linkOf(r)) + '">Copy link</button><a class="btn" style="text-decoration:none" href="' + esc(linkOf(r)) + '" target="_blank" rel="noopener">Open their page</a></div>';
+  return '<p class="muted">Each link opens only that person’s own page. For highlights, name 2 or 3 specific strengths plainly. Don’t be modest. Reviewers see your materials and deadlines but no checklist, and they don’t appear in Status or reminder emails. Publish after adding someone so their link works.</p>' + D.recs.map((r, i) => r.role === 'reviewer'
+    ? '<div class="block">' + head(r) +
+      '<label>How you address them<input data-r="' + i + '" data-k="salutation" placeholder="e.g. Kevin" value="' + esc(r.salutation) + '"></label>' +
+      '<label>Short name<input data-r="' + i + '" data-k="name" value="' + esc(r.name) + '"></label>' +
+      ta(i, 'points', 'What you’d love their feedback on (one per line)', 'e.g. Does the opening make the research question clear?', (r.points || []).join('\n')) +
+      ta(i, 'materials', 'Drafts just for them (one per line: Label | link)', 'e.g. Stanford SOP draft | https://docs.google.com/...', matsVal(r)) +
+      '<div class="wide row"><button class="link" data-rvrm="' + i + '">Remove reviewer</button></div></div>'
+    : '<div class="block">' + head(r) +
+      '<label>How you address them<input data-r="' + i + '" data-k="salutation" value="' + esc(r.salutation) + '"></label>' +
+      '<label>Column name<input data-r="' + i + '" data-k="name" value="' + esc(r.name) + '"></label>' +
+      ta(i, 'context', 'Our work together: course, semester, grade, projects (one per line)', '', (r.context || []).join('\n')) +
+      ta(i, 'points', 'What to highlight (2 or 3 lines)', 'e.g. Led the Kin project team and kept four people on schedule', (r.points || []).join('\n')) +
+      ta(i, 'materials', 'Materials just for them, shown in their letter notes (one per line: Label | link)', 'e.g. Final project report | https://drive.google.com/...', matsVal(r)) + '</div>').join('') +
+    '<div><button class="btn" id="addrv">+ Add a reviewer (materials only)</button></div>' +
+    '<div class="block"><h3 class="wide">Shared</h3><label class="wide">Note at the top of every professor’s page<textarea data-g="note">' + esc(D.note) + '</textarea></label></div>';
 }
 function mailText(r, kind) {
   const mine = D.schools.filter(s => stOf(r, s) !== 'na');
@@ -227,9 +240,9 @@ function mailText(r, kind) {
   return ['Recommendation letters: quick update', 'Dear ' + r.salutation + ',\n\nI hope your week is going well. Here is a quick update on my applications. ' + (open.length ? (open.length === 1 ? 'One letter is still open:' : open.length + ' letters are still open:') + '\n\n' + open.map(line).join('\n') : 'All letters are in.') + '\n\nYour page has my materials, how to submit for each school, and a checklist you can tick as you go: ' + link + '\nPlease let me know if anything else would help.' + sig];
 }
 function mailTab() {
-  const r = D.recs.find(x => x.id === mailRec) || D.recs[0], [sub, body] = mailText(r, mailKind);
+  const r = LET().find(x => x.id === mailRec) || LET()[0], [sub, body] = mailText(r, mailKind);
   return '<p class="muted">The school list fills in from live status. Copy, paste into your email, edit freely.</p>' +
-    '<div class="row seg">' + D.recs.map(x => '<button aria-pressed="' + (x.id === r.id) + '" data-mr="' + x.id + '">' + esc(x.name) + '</button>').join('') + '</div>' +
+    '<div class="row seg">' + LET().map(x => '<button aria-pressed="' + (x.id === r.id) + '" data-mr="' + x.id + '">' + esc(x.name) + '</button>').join('') + '</div>' +
     '<div class="row seg">' + [['checkin', 'Friendly check-in'], ['urgent', 'Due within a week'], ['thanks', 'All done, thank you']].map(k => '<button aria-pressed="' + (k[0] === mailKind) + '" data-mk="' + k[0] + '">' + k[1] + '</button>').join('') + '</div>' +
     '<label>Subject<input id="msub" value="' + esc(sub) + '"></label><label>Email<textarea id="mbody" class="mail">' + esc(body) + '</textarea></label>' +
     '<div class="row"><button class="btn" id="cs">Copy subject</button><button class="btn primary" id="cb">Copy email</button><span class="muted" id="copied"></span></div>';
@@ -259,6 +272,9 @@ function wire() {
   $('[data-p]').forEach(el => el.oninput = () => { D.profile[el.dataset.p] = el.value.trim(); touched(); });
   $('[data-rm]').forEach(b => b.onclick = () => { D.schools.splice(+b.dataset.rm, 1); dirty = true; render(); });
   $('[data-copy]').forEach(b => b.onclick = () => copy(b.dataset.copy, b));
+  const addrv = document.getElementById('addrv');
+  if (addrv) addrv.onclick = () => { const id = 'rv' + rand(3); D.recs.push({ id, role: 'reviewer', name: '', salutation: '', token: id + '-' + rand(9), context: [], points: [], materials: [], skip: [] }); dirty = true; render(); };
+  $('[data-rvrm]').forEach(b => b.onclick = () => { const r = D.recs[+b.dataset.rvrm]; if (r && r.role === 'reviewer') { D.recs.splice(+b.dataset.rvrm, 1); dirty = true; render(); } });
   $('[data-mr]').forEach(b => b.onclick = () => { mailRec = b.dataset.mr; render(); });
   $('[data-mk]').forEach(b => b.onclick = () => { mailKind = b.dataset.mk; render(); });
   const add = document.getElementById('add'); if (add) add.onclick = () => { D.schools.push({ id: 's' + rand(3), program: '', due: '', time: '', method: 'portal', from: '', link: '', howto: '' }); dirty = true; render(); };

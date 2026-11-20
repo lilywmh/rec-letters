@@ -228,3 +228,4 @@ dialog.welcome::backdrop { background: rgba(15,15,15,.45); }
 .lt-body ul { margin: 0; padding-left: 18px; display: grid; gap: 8px; }
 .lt-body ul.files { padding-left: 0; list-style: none; gap: 2px; }
 @media (max-width: 560px) { .lt-body { padding-left: 0; } }
+.todo.plain li { grid-template-columns: 1fr auto; cursor: default; }

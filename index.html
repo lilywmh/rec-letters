@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Recommendation Letters</title>
-<link rel="stylesheet" href="style.css?v=12">
+<link rel="stylesheet" href="style.css?v=13">
 <script src="prefs.js?v=11"></script>
 </head>
 <body>
@@ -54,7 +54,7 @@ const token = location.hash.replace(/^#/, '');
 const DEMO = !token && new URLSearchParams(location.search).has('demo');
 const pageKey = token || (DEMO ? 'demo' : '');
 let P = null, toast = '', busy = false, welcomed = false;
-const openSecs = new Set(['materials', 'highlights']);
+const openSecs = new Set(['materials', 'highlights', 'drafts']);
 
 if (DEMO) startDemo();
 else if (!token) {
@@ -127,12 +127,13 @@ function sec(id, icon, title, count, body) {
 }
 
 function render() {
+  const RV = P.role === 'reviewer';
   const mine = P.schools.slice().sort(byDue);
   const todo = mine.filter(s => P.status[s.id] !== 'submitted');
   const done = mine.filter(s => P.status[s.id] === 'submitted');
   const next = todo.find(s => s.due);
   const dl = next ? daysLeft(next.due) : null;
-  document.getElementById('brand').textContent = 'Letters for ' + ((P.profile || {}).name || P.student || FIRST);
+  document.getElementById('brand').textContent = (RV ? 'Materials from ' : 'Letters for ') + ((P.profile || {}).name || P.student || FIRST);
 
   const pf = Object.assign({}, DEFAULT_PROFILE, P.profile || {});
   Object.keys(DEFAULT_PROFILE).forEach(k => { if (pf[k] === undefined || pf[k] === null) pf[k] = DEFAULT_PROFILE[k]; });
@@ -141,8 +142,8 @@ function render() {
   const name = pf.name || P.student || FIRST;
   const initials = name.replace(/\(.*?\)/g, '').trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
   const hero = '<section class="hero"><h1>' + (P.salutation ? 'Hi ' + esc(P.salutation) + ' \ud83d\udc4b' : 'Recommendation letters') + '</h1>' +
-    '<p class="muted">Thank you for writing my recommendation letters. Updated ' + fmt(P.updated) + '.</p>' +
-    (P.note ? '<div class="callout"><span>\ud83d\udc8c</span><p>' + esc(P.note) + '</p></div>' : '') + '</section>';
+    '<p class="muted">' + (RV ? 'Thank you for reading my application materials.' : 'Thank you for writing my recommendation letters.') + ' Updated ' + fmt(P.updated) + '.</p>' +
+    (P.note && !RV ? '<div class="callout"><span>\ud83d\udc8c</span><p>' + esc(P.note) + '</p></div>' : '') + '</section>';
   let h = '';
   const mats = (P.materials || []).filter(m => m.label), own = P.own || [], pts = P.points || [], ctx = P.context || [];
   h += '<div class="cols"><aside class="side">';
@@ -160,7 +161,7 @@ function render() {
     '<ul class="files">' + mats.map(m => m.url
       ? '<li><a href="' + esc(m.url) + '" target="_blank" rel="noopener">📄 ' + esc(m.label) + (m.updated ? '<span class="d">' + fmt(m.updated) + '</span>' : '') + '</a></li>'
       : '<li><span class="off">📄 ' + esc(m.label) + '<span class="d">coming soon</span></span></li>').join('') + '</ul>');
-  h += sec('submit', '📮', 'How to submit', '',
+  if (!RV) h += sec('submit', '📮', 'How to submit', '',
     '<div class="subs">' + mine.map(s => {
       const m = s.method || 'portal';
       let how = esc(s.howto || METHOD[m]);
@@ -180,6 +181,18 @@ function render() {
     (ctx.length ? tog('together', '🎓', 'Our work together', ctx.length, '<ul>' + ctx.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>') : '') +
     (own.length ? tog('own', '📎', 'Just for you', own.length, '<ul class="files">' + own.map(fileLi).join('') + '</ul>') : '') +
     '</section>' : '';
+  if (RV) {
+    const fb = '<section class="letter"><h2>Your feedback</h2>' +
+      (own.length ? tog('drafts', '📝', 'Drafts for you', own.length, '<ul class="files">' + own.map(fileLi).join('') + '</ul>') : '') +
+      (pts.length ? tog('highlights', '💬', 'What I’d love your feedback on', pts.length, '<ul>' + pts.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>') : '') +
+      (!own.length && !pts.length ? '<p class="muted">My materials are in the side panel.</p>' : '') + '</section>';
+    const list = mine.length ? '<section class="main"><div class="main-head"><div class="row"><h2>Programs and deadlines</h2><span class="muted">' + plural(mine.length, 'program') + '</span></div></div><ul class="todo plain">' +
+      mine.map(s => '<li><span><span class="name">' + esc(s.program) + '</span></span><span class="due"><span>' + (s.due ? fmt(s.due) : 'TBD') + '</span></span></li>').join('') + '</ul></section>' : '';
+    h += '<div class="right">' + hero + fb + list +
+      '<a class="ask" href="mailto:' + esc(mail) + '"><span class="ask-i">' + ICON.mail + '</span><span><b>Got a question?</b><span class="muted"> Send me an email at ' + esc(mail) + '</span></span><span class="ask-go" aria-hidden="true">\u2192</span></a>' +
+      '</div></div>';
+    app.innerHTML = h; return;
+  }
   const pct = mine.length ? Math.round(done.length / mine.length * 100) : 0;
   h += '<div class="right">' + hero + letter + '<section class="main"><div class="main-head"><div class="row"><h2>Checklist</h2><span class="muted">' + done.length + ' of ' + plural(mine.length, 'letter') + ' submitted</span></div>' +
     '<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="' + mine.length + '" aria-valuenow="' + done.length + '"><span style="width:' + pct + '%"></span></div>' +
@@ -213,12 +226,14 @@ function showWelcome() {
   d.innerHTML = '<form method="dialog" class="w-in">' +
     '<div class="w-hi">👋</div>' +
     '<h2 id="w-title">' + (P.salutation ? 'Hi ' + esc(P.salutation) + ',' : 'Hi there,') + '</h2>' +
-    '<p>Thank you so much for writing for me. I made this page so everything you need is in one place, and you never have to dig through old emails.</p>' +
+    (P.role === 'reviewer'
+      ? '<p>Thank you so much for reading my application materials. Everything is on this page: drafts for you are at the top, and my CV and other materials are in the side panel. Links always open the latest version.</p>'
+      : '<p>Thank you so much for writing for me. I made this page so everything you need is in one place, and you never have to dig through old emails.</p>' +
     '<ol>' +
       '<li><span class="wi">📎</span><span><b>Everything you need is on this page</b><span class="ws">My CV, statements and how each school takes letters are in the side panel. Notes for your letter are right at the top.</span></span></li>' +
       '<li><span class="wi">☑️</span><span><b>Tick a school when you submit</b><span class="ws">I’ll see it right away, so there’s no need to email me each time.</span></span></li>' +
       '<li><span class="wi">📬</span><span><b>Invitations come from each school</b><span class="ws">If one is missing or a link has expired, send me an email and I’ll resend it.</span></span></li>' +
-    '</ol>' +
+    '</ol>') +
     '<p class="ws" style="margin:0">You can open this again anytime from <b style="display:inline">? How this page works</b> at the top.</p>' +
     '<div class="w-actions"><span class="sig">With gratitude, ' + esc(FIRST) + '</span><button class="btn primary" value="ok" autofocus>Sounds good</button></div>' +
     '</form>';
